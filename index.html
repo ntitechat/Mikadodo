@@ -207,7 +207,52 @@ function zoomPhoto(src){let z=document.getElementById('photoZoom'),im=document.g
 function closePhotoZoom(){document.getElementById('photoZoom')?.classList.remove('show')}
 let cookingTimer={end:0,name:'',interval:null};function startCookingTimer(minutes,name){minutes=Number(minutes)||0;if(minutes<=0)return toast('Cette recette n’a pas de temps de cuisson');if(cookingTimer.interval)clearInterval(cookingTimer.interval);cookingTimer={end:Date.now()+minutes*60000,name:decodeURIComponent(name||''),interval:null};renderCookingTimer();cookingTimer.interval=setInterval(()=>{renderCookingTimer();if(Date.now()>=cookingTimer.end){clearInterval(cookingTimer.interval);cookingTimer.interval=null;document.getElementById('timerTime').textContent='00:00';toast(`Cuisson terminée : ${cookingTimer.name} 🔔`);setTimeout(()=>{document.getElementById('timerBar').classList.remove('show')},2500)}},1000);document.getElementById('timerBar').classList.add('show');toast(`Minuteur lancé : ${minutes} min`)}function renderCookingTimer(){let sec=Math.max(0,Math.ceil((cookingTimer.end-Date.now())/1000));let m=String(Math.floor(sec/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');let el=document.getElementById('timerTime');if(el)el.textContent=`${m}:${s}`}function stopCookingTimer(){if(cookingTimer.interval)clearInterval(cookingTimer.interval);cookingTimer={end:0,name:'',interval:null};document.getElementById('timerBar')?.classList.remove('show');toast('Minuteur arrêté')}
 function showModal(){document.getElementById('modalBack').classList.add('show')}function closeModal(){document.getElementById('modalBack').classList.remove('show');document.getElementById('modal').className='modal'}
-setInterval(()=>{updateReminder();checkNotifications()},10000);let sent={};function checkNotifications(){if(!('Notification'in window)||Notification.permission!=='granted')return;let now=new Date();state.agenda.forEach(x=>{let t=new Date(x.date+'T'+(x.notifyTime||startTime(x.time,x.duration))+':00');if(Math.abs(t-now)<30000&&!sent[x.id]){new Notification('Mikadodo',{body:`${x.name} — notification prévue à ${x.notifyTime||startTime(x.time,x.duration)}. Repas à ${x.time}.`});sent[x.id]=1}})}
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});renderAll();
+let notificationTimer=null;
+function notificationKey(x){return `mikadodo-notif:${x.id}:${x.date}:${x.notifyTime||startTime(x.time,x.duration)}`}
+function wasNotificationSent(x){try{return localStorage.getItem(notificationKey(x))==='1'}catch(e){return false}}
+function markNotificationSent(x){try{localStorage.setItem(notificationKey(x),'1')}catch(e){}}
+async function showAgendaNotification(x){
+  if(!('Notification' in window)||Notification.permission!=='granted')return false;
+  const notifyTime=x.notifyTime||startTime(x.time,x.duration);
+  const body=`${x.name} — rappel à ${notifyTime}. Repas à ${x.time}.`;
+  try{
+    if('serviceWorker' in navigator){
+      const reg=await navigator.serviceWorker.ready;
+      await reg.showNotification('Mikadodo',{body,tag:`agenda-${x.id}`,renotify:true,icon:'icon-512.png',badge:'icon-512.png',data:{agendaId:x.id}});
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+async function checkNotifications(){
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const now=Date.now();
+  for(const x of state.agenda){
+    const notifyTime=x.notifyTime||startTime(x.time,x.duration);
+    const t=new Date(`${x.date}T${notifyTime}:00`).getTime();
+    // Autorise un petit retard (jusqu'à 2 minutes) si Chrome a suspendu la page.
+    if(!Number.isNaN(t)&&t<=now&&now-t<=120000&&!wasNotificationSent(x)){
+      if(await showAgendaNotification(x))markNotificationSent(x);
+    }
+  }
+}
+function scheduleNotificationCheck(){
+  if(notificationTimer)clearTimeout(notificationTimer);
+  let next=Infinity,now=Date.now();
+  state.agenda.forEach(x=>{
+    const t=new Date(`${x.date}T${x.notifyTime||startTime(x.time,x.duration)}:00`).getTime();
+    if(t>now&&!wasNotificationSent(x)&&t<next)next=t;
+  });
+  if(next<Infinity)notificationTimer=setTimeout(()=>{checkNotifications().finally(scheduleNotificationCheck)},Math.max(1000,next-now));
+}
+setInterval(()=>{updateReminder();checkNotifications();scheduleNotificationCheck()},5000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkNotifications();scheduleNotificationCheck()}});
+window.addEventListener('focus',()=>{checkNotifications();scheduleNotificationCheck()});
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>reg.update()).catch(()=>{});
+}
+renderAll();
+checkNotifications();
+scheduleNotificationCheck();
 </script>
 </body></html>
