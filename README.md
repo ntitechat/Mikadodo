@@ -19,8 +19,3 @@ Prototype PWA mobile de gestion des recettes, du stock, des courses, de l’agen
 - Navigation principale en haut : Recettes, Stock, Agenda, Courses.
 - Barre basse simplifiée : Notes et Paramètres.
 - Agenda : bouton Mois avec calendrier mensuel et recettes programmées.
-
-
-## Version 17
-- Option emoji retirée du formulaire des recettes.
-- Liste des recettes alignée en une colonne : image à gauche, description à droite.
