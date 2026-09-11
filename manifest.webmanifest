@@ -1,0 +1,10 @@
+{
+  "name":"Mikadodo",
+  "short_name":"Mikadodo",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#FFFBFC",
+  "theme_color":"#E8A7B8",
+  "lang":"fr",
+  "icons":[]
+}
