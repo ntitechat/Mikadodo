@@ -65,7 +65,7 @@ state.notes=state.notes||[];
 state.shopping.forEach(x=>x.cat=x.cat||'Autre');
 state.recipes.forEach(r=>{r.used=r.used||{};r.usedStock=r.usedStock||{}});state.stock.forEach(x=>x.photo=x.photo||'');
 state.agenda.forEach(x=>{x.notifyTime=x.notifyTime||startTime(x.time,x.duration||0)});
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 function switchView(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===v));document.getElementById('fab').style.display=v==='recipes'?'block':'none';renderAll()}
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
 function renderAll(){renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
@@ -96,12 +96,55 @@ function openStockEdit(id){let x=state.stock.find(s=>s.id===id);if(!x)return;ope
 
 function daysLeft(s){let a=new Date();a.setHours(0,0,0,0);let b=new Date(s);b.setHours(0,0,0,0);return Math.ceil((b-a)/86400000)}
 function consumeStock(id){let x=state.stock.find(s=>s.id===id);if(!x)return;x.qty=Number(x.qty)-1;if(x.qty<=0)state.stock=state.stock.filter(s=>s.id!==id);save();renderStock();toast('Stock mis à jour')}
-function openStockModal(prefill){let x=prefill||{};let isEdit=!!x.editId;document.getElementById('modal').innerHTML=`<h2>🧊 ${isEdit?'Modifier le stock':'Ajouter au stock'}</h2><div class="form-grid"><div class="field"><label>Produit</label><input id="sn" value="${esc(x.name||'')}" placeholder="Ex. Poulet"></div><div class="field"><label>Emplacement</label><select id="sp"><option ${x.place==='Réfrigérateur'||!x.place?'selected':''}>Réfrigérateur</option><option ${x.place==='Congélateur'?'selected':''}>Congélateur</option><option ${x.place==='Placard'?'selected':''}>Placard</option></select></div><div class="field"><label>Quantité</label><input id="sq" type="number" min="1" value="${x.qty||1}"></div><div class="field"><label>Unité</label><input id="su" value="${esc(x.unit||'x')}"></div><div class="field"><label>Conservation</label><input id="sk" type="number" min="0" value="${x.keep||''}" placeholder="Ex. 1"></div><div class="field"><label>Unité</label><select id="sku"><option ${x.keepUnit==='jours'||!x.keepUnit?'selected':''}>jours</option><option ${x.keepUnit==='semaines'?'selected':''}>semaines</option><option ${x.keepUnit==='mois'?'selected':''}>mois</option><option ${x.keepUnit==='années'?'selected':''}>années</option></select></div><div class="field full"><label>Date limite calculée</label><input id="sd" type="date" value="${x.date||''}" readonly></div><div class="field"><label>Emoji</label><input id="se" value="${esc(x.emoji||'📦')}"></div><div class="field full"><label>Photo</label><input id="sphoto" type="file" accept="image/*" onchange="previewStockImage(event)"><img id="sphotoPreview" class="stock-photo-preview" alt="Aperçu"></div></div><p class="small">Exemple : Nouilles instantanées → Placard → Conservation : <b>1 année</b>. La date limite est calculée automatiquement à partir d'aujourd'hui.</p><div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveStock(${x.shopId||'null'},${x.editId||'null'})">${isEdit?'Enregistrer':'Ajouter'}</button></div>`;showModal();setTimeout(()=>{document.getElementById('sk')?.addEventListener('input',updateStockKeepDate);document.getElementById('sku')?.addEventListener('change',updateStockKeepDate);if(!isEdit)updateStockKeepDate()},0)}
+function openStockModal(prefill){
+  let x=prefill||{}, isEdit=!!x.editId;
+  document.getElementById('modal').className='modal';
+  document.getElementById('modal').innerHTML=`<h2>🧊 ${isEdit?'Modifier le produit du stock':'Ajouter un produit au stock'}</h2>
+  <div class="form-grid">
+    <div class="field full"><label>Produit / ingrédient</label><input id="sn" value="${esc(x.name||'')}" placeholder="Ex. Poulet, lait, tomates…" autofocus></div>
+    <div class="field"><label>Emplacement</label><select id="sp"><option ${x.place==='Réfrigérateur'||!x.place?'selected':''}>Réfrigérateur</option><option ${x.place==='Congélateur'?'selected':''}>Congélateur</option><option ${x.place==='Placard'?'selected':''}>Placard</option></select></div>
+    <div class="field"><label>Quantité</label><input id="sq" type="number" min="0.01" step="0.01" value="${x.qty??1}"></div>
+    <div class="field"><label>Unité</label><input id="su" value="${esc(x.unit||'x')}" placeholder="kg, g, L, x…"></div>
+    <div class="field"><label>Conservation</label><input id="sk" type="number" min="0" step="1" value="${x.keep??''}" placeholder="Ex. 7"></div>
+    <div class="field"><label>Unité de conservation</label><select id="sku"><option ${x.keepUnit==='jours'||!x.keepUnit?'selected':''}>jours</option><option ${x.keepUnit==='semaines'?'selected':''}>semaines</option><option ${x.keepUnit==='mois'?'selected':''}>mois</option><option ${x.keepUnit==='années'?'selected':''}>années</option></select></div>
+    <div class="field full"><label>Date limite</label><input id="sd" type="date" value="${x.date||''}"></div>
+    <div class="field full"><label>Photo (facultatif)</label><input id="sphoto" type="file" accept="image/*" onchange="previewStockImage(event)"><img id="sphotoPreview" class="stock-photo-preview" alt="Aperçu" style="display:${x.photo?'block':'none'}" src="${x.photo||''}"></div>
+  </div>
+  <p class="small">Tu peux saisir n’importe quel ingrédient ou produit. La date est calculée automatiquement si tu renseignes une durée de conservation, mais tu peux aussi la modifier directement.</p>
+  <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn" id="stockSaveBtn" onclick="saveStock(null,${x.editId||'null'})">${isEdit?'Enregistrer les modifications':'Ajouter au stock'}</button></div>`;
+  showModal();
+  setTimeout(()=>{
+    document.getElementById('sk')?.addEventListener('input',updateStockKeepDate);
+    document.getElementById('sku')?.addEventListener('change',updateStockKeepDate);
+    if(!isEdit && !x.date) updateStockKeepDate();
+  },0);
+}
 function previewStockImage(e){let f=e.target.files?.[0],img=document.getElementById('sphotoPreview');if(!f||!img)return;img.src=URL.createObjectURL(f);img.style.display='block'}
 function updateStockKeepDate(){let k=Number(document.getElementById('sk')?.value)||0,u=document.getElementById('sku')?.value,d=document.getElementById('sd');if(!d)return;let x=new Date();if(k>0)addKeepToDate(x,k,u);d.value=k?x.toISOString().slice(0,10):''}
-
-async function saveStock(shopId,editId){let name=document.getElementById('sn').value.trim();if(!name)return toast('Indique un produit');let file=document.getElementById('sphoto')?.files?.[0],photo='';try{photo=await resizeRecipeImage(file)}catch(e){return toast('Impossible de lire cette photo')}let keep=Number(document.getElementById('sk').value)||0,keepUnit=document.getElementById('sku').value;let d=new Date();if(keep>0)addKeepToDate(d,keep,keepUnit);let date=keep>0?d.toISOString().slice(0,10):(document.getElementById('sd').value||new Date().toISOString().slice(0,10));let data={name,place:document.getElementById('sp').value,qty:Number(document.getElementById('sq').value)||1,unit:document.getElementById('su').value,date,keep,keepUnit,emoji:document.getElementById('se').value};if(editId){let x=state.stock.find(s=>s.id===Number(editId));if(!x)return;Object.assign(x,data);if(photo)x.photo=photo;save();closeModal();renderStock();toast('Stock modifié ✨')}else{state.stock.push({id:Date.now(),...data,photo});save();closeModal();renderStock();renderShopping();toast('Produit ajouté au stock')}}
-
+async function saveStock(shopId,editId){
+  const name=document.getElementById('sn')?.value.trim();
+  if(!name){toast('Indique un produit ou un ingrédient');document.getElementById('sn')?.focus();return}
+  const qty=Number(document.getElementById('sq')?.value);
+  if(!(qty>0)){toast('Indique une quantité valide');document.getElementById('sq')?.focus();return}
+  const keep=Number(document.getElementById('sk')?.value)||0, keepUnit=document.getElementById('sku')?.value||'jours';
+  let date=document.getElementById('sd')?.value||'';
+  if(keep>0){let d=new Date();addKeepToDate(d,keep,keepUnit);date=d.toISOString().slice(0,10)}
+  if(!date)date=new Date().toISOString().slice(0,10);
+  let photo='';
+  const file=document.getElementById('sphoto')?.files?.[0];
+  if(file){try{photo=await resizeRecipeImage(file)}catch(e){toast('La photo n’a pas pu être ajoutée');return}}
+  const data={name,place:document.getElementById('sp')?.value||'Réfrigérateur',qty,unit:document.getElementById('su')?.value.trim()||'x',date,keep,keepUnit};
+  if(editId!==null && editId!==undefined){
+    const x=state.stock.find(s=>s.id===Number(editId));
+    if(!x){toast('Produit introuvable');return}
+    Object.assign(x,data);if(photo)x.photo=photo;
+    if(!save())return;closeModal();renderStock();renderShopping();toast('Produit du stock modifié ✓');
+  }else{
+    state.stock.push({id:Date.now(),...data,photo:photo||''});
+    if(!save()){state.stock.pop();return}
+    closeModal();renderStock();renderShopping();toast('Produit ajouté au stock ✓');
+  }
+}
 function renderAgenda(){let days=[...Array(7)].map((_,i)=>{let d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+i);return d});document.getElementById('calendar').innerHTML=days.map(d=>{let key=d.toISOString().slice(0,10),items=state.agenda.filter(x=>x.date===key).sort((a,b)=>a.time.localeCompare(b.time));return `<div class="day"><h3>${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}<span class="agenda-deco">✦ · ˚</span></h3>${items.length?items.map(x=>`<div class="meal"><div class="time">${x.moment==='Matin'?'🌅':x.moment==='Midi'?'☀️':'🌙'}<br>${esc(x.time)}</div><div class="meal-info"><strong>${esc(x.name)}</strong><small>${x.duration} min · début conseillé ${startTime(x.time,x.duration)} · 🔔 ${esc(x.notifyTime||startTime(x.time,x.duration))}</small></div><div class="shop-actions"><button class="btn ghost mini" onclick="openAgendaEdit(${x.id})">✏️</button><button class="btn ghost mini" onclick="removeAgenda(${x.id})">🗑️</button></div></div>`).join(''):'<div class="small">Aucun repas</div>'}</div>`}).join('')}
 function startTime(t,dur){let [h,m]=t.split(':').map(Number),n=h*60+m-Number(dur||0);n=(n+1440)%1440;return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
 function openAgendaModal(recipe){let opts=state.recipes.map(r=>`<option value="${r.id}" ${recipe?.id===r.id?'selected':''}>${esc(r.name)}</option>`).join('');let dur=recipe?recipe.prep+recipe.cook:50;let defaultTime='20:00';let defaultNotify=startTime(defaultTime,dur);document.getElementById('modal').className='modal';document.getElementById('modal').innerHTML=`<h2>📅 Programmer un repas</h2><div class="form-grid"><div class="field full"><label>Recette</label><select id="ar" onchange="updateAgendaDuration()">${opts}</select></div><div class="field"><label>Date</label><input id="ad" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><label>Moment</label><select id="am"><option>Matin</option><option>Midi</option><option>Soir</option></select></div><div class="field"><label>Heure du repas</label><input id="at" type="time" value="${defaultTime}" onchange="syncAgendaNotify()"></div><div class="field"><label>Durée totale (min)</label><input id="adu" type="number" value="${dur}" onchange="syncAgendaNotify()"></div><div class="field"><label>🔔 Notification</label><input id="ant" type="time" value="${defaultNotify}"></div></div><p class="small">Tu peux recevoir le rappel à l'heure que tu choisis. Par défaut, il est réglé sur l'heure de début conseillée.</p><div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveAgenda()">Programmer</button></div>`;showModal()}
