@@ -1,4 +1,4 @@
-# Mikadodo — version 16
+# Mikadodo — version 14
 
 Prototype PWA mobile de gestion des recettes, du stock, des courses, de l’agenda et des notes.
 
@@ -8,14 +8,3 @@ Prototype PWA mobile de gestion des recettes, du stock, des courses, de l’agen
 - Interface recettes en liste alignée, avec photo à gauche et description à droite.
 - Notes avec listes à cocher.
 - Paramètres accessibles depuis la barre du bas.
-
-
-## Version 15
-- Ajout au stock et modification du stock fiabilisés.
-- Boutons Ajouter / Enregistrer protégés contre les doubles clics et erreurs de saisie.
-
-
-## Version 16
-- Navigation principale en haut : Recettes, Stock, Agenda, Courses.
-- Barre basse simplifiée : Notes et Paramètres.
-- Agenda : bouton Mois avec calendrier mensuel et recettes programmées.
