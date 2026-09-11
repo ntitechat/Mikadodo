@@ -66,30 +66,7 @@ state.shopping.forEach(x=>x.cat=x.cat||'Autre');
 state.recipes.forEach(r=>{r.used=r.used||{};r.usedStock=r.usedStock||{}});state.stock.forEach(x=>x.photo=x.photo||'');
 state.agenda.forEach(x=>{x.notifyTime=x.notifyTime||startTime(x.time,x.duration||0)});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
-function switchView(v, push=true){
-  if(!document.getElementById(v)) v='recipes';
-  if(push){
-    const current=location.hash.replace('#','')||document.querySelector('.view.active')?.id||'recipes';
-    if(current!==v) history.pushState({view:v},'', '#'+v);
-  }
-  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));
-  document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===v));
-  document.getElementById('fab').style.display=v==='recipes'?'block':'none';
-  renderAll();
-}
-(function initAppHistory(){
-  const initial=location.hash.replace('#','')||document.querySelector('.view.active')?.id||'recipes';
-  history.replaceState({view:initial},'', '#'+initial);
-  switchView(initial,false);
-  window.addEventListener('popstate',()=>{
-    if(document.getElementById('modalBack').classList.contains('show')){
-      closeModal();
-      return;
-    }
-    const v=history.state?.view || location.hash.replace('#','') || 'recipes';
-    switchView(v,false);
-  });
-})();
+function switchView(v){document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===v));document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===v));document.getElementById('fab').style.display=v==='recipes'?'block':'none';renderAll()}
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
 function renderAll(){renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all';
