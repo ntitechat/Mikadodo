@@ -58,11 +58,13 @@ let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
  stock:[{id:101,name:'Muffins',place:'Congélateur',qty:1,unit:'x',date:'2026-11-01',days:null,emoji:'🧁'},{id:102,name:'Pesto',place:'Congélateur',qty:2,unit:'x',date:'2026-12-01',days:null,emoji:'🌿'},{id:103,name:'Lait',place:'Réfrigérateur',qty:2,unit:'L',date:'2026-09-14',days:null,emoji:'🥛'}],
  shopping:[{id:201,name:'Lait',qty:2,price:1.5,done:false,cat:'Produits laitiers'},{id:202,name:'Tomates',qty:1,price:1,done:false,cat:'Fruits et légumes'},{id:203,name:'Pain',qty:1,price:1,done:false,cat:'Épicerie'}],
  agenda:[],
- recipeCategories:['Petit-déjeuner','Entrée','Salade','Soupe','Plat','Accompagnement','Sandwich','Dessert','Boisson','Goûter','Apéritif'],
+ recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','Entrée','Boisson','Goûter','Apéritif'],
  shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'],
  notes:[]
 };
-state.recipeCategories=state.recipeCategories||['Petit-déjeuner','Entrée','Salade','Soupe','Plat','Accompagnement','Sandwich','Dessert','Boisson','Goûter','Apéritif'];
+state.recipeCategories=state.recipeCategories||['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','Entrée','Boisson','Goûter','Apéritif'];
+const preferredRecipeCategoryOrder=['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus'];
+state.recipeCategories=[...preferredRecipeCategoryOrder.filter(c=>state.recipeCategories.includes(c)),...state.recipeCategories.filter(c=>!preferredRecipeCategoryOrder.includes(c))];
 state.shoppingCategories=state.shoppingCategories||['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];
 state.notes=state.notes||[];
 state.shopping.forEach(x=>x.cat=x.cat||'Autre');
