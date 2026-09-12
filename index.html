@@ -97,7 +97,7 @@ window.addEventListener('popstate',event=>{
 history.replaceState({mikadodo:true,view:'recipes'},'',location.href.split('#')[0]+'#recipes');
 history.pushState({mikadodo:true,view:'recipes'},'',`#recipes`);
 navigationReady=true;
-function renderAll(){renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
+function renderAll(){syncStockExpiryAgenda();renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all';
 function formatDuration(minutes){minutes=Number(minutes)||0;if(minutes<=0)return '';if(minutes<60)return `${minutes}min`;let h=Math.floor(minutes/60),m=minutes%60;return m?`${h}h${String(m).padStart(2,'0')}`:`${h}h`}
 function servingMeta(r){const units={personnes:['👥','personne','personnes'],sandwichs:['🥪','sandwich','sandwichs'],gaufres:['🧇','gaufre','gaufres'],parts:['🍰','part','parts'],biscuits:['🍪','biscuit','biscuits']};const u=units[r.servUnit]||units.personnes;const n=Number(r.serv)||1;return `${u[0]} ${n} ${n===1?u[1]:u[2]}`}
@@ -125,6 +125,39 @@ function addKeepToDate(d,value,unit){value=Number(value)||0;if(unit==='jours')d.
 function saveRecipeStock(id){let r=state.recipes.find(x=>x.id===id),qty=Number(document.getElementById('sQty').value)||1,place=document.getElementById('sPlace').value;let d=new Date();addKeepToDate(d,r.keep,r.keepUnit);state.stock.push({id:Date.now(),name:r.name,place,qty,unit:'portion(s)',date:d.toISOString().slice(0,10),days:r.keep,keep:r.keep,keepUnit:r.keepUnit,keepPlace:r.keepPlace,emoji:r.emoji||'🍽️',photo:(r.photos?.[1]||r.photos?.[0]||r.photo||'')});save();closeModal();toast('Recette ajoutée au stock');switchView('stock')}
 function addRecipeToShopping(id){let r=state.recipes.find(x=>x.id===id);r.ingredients.forEach(i=>state.shopping.push({id:Date.now()+Math.random(),name:i.replace(/^\d+[.,]?\d*\s*(g|kg|ml|cl|L|c\. à s\.)?\s*/i,''),qty:1,price:0,done:false}));save();closeModal();toast('Ingrédients ajoutés aux courses');switchView('shopping')}
 function prefillAgenda(id){let r=state.recipes.find(x=>x.id===id);closeModal();openAgendaModal(r)}
+function syncStockExpiryAgenda(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  let changed=false;
+  for(const x of state.stock){
+    if(!x?.id||!x.date)continue;
+    const expiry=new Date(x.date+'T00:00:00');
+    if(Number.isNaN(expiry.getTime()))continue;
+    expiry.setHours(0,0,0,0);
+    const days=Math.ceil((expiry-today)/86400000);
+    if(days>=0&&days<=1){
+      const exists=state.agenda.some(a=>a.type==='stock-expiry'&&Number(a.stockId)===Number(x.id)&&a.date===x.date);
+      if(!exists){
+        state.agenda.push({
+          id:Date.now()+Math.random(),
+          type:'stock-expiry',
+          stockId:x.id,
+          recipeId:null,
+          name:`‼️ ${x.name} — à consommer`,
+          date:x.date,
+          moment:'Midi',
+          time:'12:00',
+          duration:0,
+          advisedTime:'12:00',
+          notifyTime:'12:00',
+          photo:x.photo||''
+        });
+        changed=true;
+      }
+    }
+  }
+  if(changed)save();
+  return changed;
+}
 function renderStock(){let q=(document.getElementById('stockSearch')?.value||'').toLowerCase();let groups=['Réfrigérateur','Congélateur','Placard'];document.getElementById('stockList').innerHTML=groups.filter(g=>stockFilter==='all'||g===stockFilter).map(g=>{let a=state.stock.filter(x=>x.place===g&&x.name.toLowerCase().includes(q));if(!a.length)return '';return `<div class="stock-group"><div class="stock-title"><span>${g==='Congélateur'?'❄️':g==='Réfrigérateur'?'🧊':'🏠'} ${g}</span><span>${a.length}</span></div>${a.map(x=>{let days=daysLeft(x.date),cl=days<=1?'danger':days<=3?'warn':'';return `<div class="stock-item clickable" onclick="openStockEdit(${x.id})">${photoSrc(x.photo)?`<img src="${photoSrc(x.photo)}" style="width:56px;height:56px;border-radius:14px;object-fit:cover">`:`<div class="stock-icon">${x.emoji||'📦'}</div>`}<div class="stock-info"><strong>${esc(x.name)}</strong><small>DDM/DLC : ${fmtDate(x.date)} · ${x.qty}${x.unit||'x'}${x.keep?` · Conservation ${x.keep} ${x.keepUnit}`:''}</small></div><span class="pill ${cl}">${days<0?'Dépassé':days===0?'Aujourd’hui':days+' jour'+(days>1?'s':'')}</span><button class="btn ghost" onclick="event.stopPropagation();consumeStock(${x.id})">−</button></div>`}).join('')}</div>`}).join('')||'<div class="empty">Ton stock est vide.</div>'}
 function openStockEdit(id){let x=state.stock.find(s=>s.id===id);if(!x)return;openStockModal({...x,editId:id})}
 
@@ -276,7 +309,7 @@ function markNotificationSent(x){try{localStorage.setItem(notificationKey(x),'1'
 async function showAgendaNotification(x){
   if(!('Notification' in window)||Notification.permission!=='granted')return false;
   const notifyTime=x.notifyTime||startTime(x.time,x.duration);
-  const body=`${x.name} — rappel à ${notifyTime}. Repas à ${x.time}.`;
+  const body=x.type==='stock-expiry'?`‼️ ${x.name.replace(/^‼️\s*/,'')} — à consommer aujourd’hui à 12h.`:`${x.name} — rappel à ${notifyTime}. Repas à ${x.time}.`;
   try{
     if('serviceWorker' in navigator){
       const reg=await navigator.serviceWorker.ready;
@@ -307,7 +340,7 @@ function scheduleNotificationCheck(){
   });
   if(next<Infinity)notificationTimer=setTimeout(()=>{checkNotifications().finally(scheduleNotificationCheck)},Math.max(1000,next-now));
 }
-setInterval(()=>{updateReminder();checkNotifications();scheduleNotificationCheck()},5000);
+setInterval(()=>{if(syncStockExpiryAgenda()){renderAgenda();updateReminder()}renderStock();checkNotifications();scheduleNotificationCheck()},5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkNotifications();scheduleNotificationCheck()}});
 window.addEventListener('focus',()=>{checkNotifications();scheduleNotificationCheck()});
 if('serviceWorker'in navigator){
