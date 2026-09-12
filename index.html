@@ -100,7 +100,26 @@ navigationReady=true;
 function renderAll(){syncStockExpiryAgenda();renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all';
 function formatDuration(minutes){minutes=Number(minutes)||0;if(minutes<=0)return '';if(minutes<60)return `${minutes}min`;let h=Math.floor(minutes/60),m=minutes%60;return m?`${h}h${String(m).padStart(2,'0')}`:`${h}h`}
-function servingMeta(r){const units={personnes:['👥','personne','personnes'],sandwichs:['🥪','sandwich','sandwichs'],gaufres:['🧇','gaufre','gaufres'],parts:['🍰','part','parts'],biscuits:['🍪','biscuit','biscuits']};const u=units[r.servUnit]||units.personnes;const n=Number(r.serv)||1;return `${u[0]} ${n} ${n===1?u[1]:u[2]}`}
+function servingMeta(r){
+  const units={
+    personnes:['👥','personne','personnes'],
+    sandwichs:['🥪','sandwich','sandwichs'],
+    gaufres:['🧇','gaufre','gaufres'],
+    parts:['🍰','part','parts'],
+    biscuits:['🍪','biscuit','biscuits'],
+    crepes:['🥞','crêpe','crêpes'],
+    donuts:['🍩','donut','donuts'],
+    pots:['🍯','pot','pots'],
+    bouteilles:['🧃','bouteille','bouteilles'],
+    sachets:['🛍️','sachet','sachets'],
+    onigiri:['🍙','onigiri','onigiris'],
+    glace:['🍦','glace','glaces'],
+    gateaux:['🎂','gâteau','gâteaux']
+  };
+  const u=units[r.servUnit]||units.personnes;
+  const n=Number(r.serv)||1;
+  return `${u[0]} ${n} ${n===1?u[1]:u[2]}`;
+}
 function durationMeta(r){const total=formatDuration((Number(r.prep)||0)+(Number(r.cook)||0));return total?`⏱️ ${total}`:''}
 function deleteRecipe(id){let r=state.recipes.find(x=>x.id===id);if(!r)return;if(!confirm(`Supprimer la recette « ${r.name} » ? Cette action est irréversible.`))return;state.recipes=state.recipes.filter(x=>x.id!==id);state.agenda=state.agenda.filter(x=>x.recipeId!==id);save();closeModal();renderAll();updateReminder();toast('Recette supprimée')}
 function renderRecipes(){let q=(document.getElementById('recipeSearch')?.value||'').toLowerCase();document.getElementById('recipeChips').innerHTML=cats().map(c=>{let count=c==='Toutes'?state.recipes.length:state.recipes.filter(r=>r.cat===c).length;return `<button class="chip ${activeCat===c?'active':''}" onclick="setRecipeCategory('${encodeURIComponent(c)}')">${esc(c)} ${count}</button>`}).join('');let a=state.recipes.filter(r=>(activeCat==='Toutes'||r.cat===activeCat)&&(!q||r.name.toLowerCase().includes(q)||r.ingredients.join(' ').toLowerCase().includes(q))).sort((x,y)=>{if(activeCat!=='Toutes')return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});let cx=state.recipeCategories.indexOf(x.cat),cy=state.recipeCategories.indexOf(y.cat);if(cx!==cy)return (cx<0?999:cx)-(cy<0?999:cy);return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});});document.getElementById('recipeGrid').innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||'jours')}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette trouvée.</div>'}
