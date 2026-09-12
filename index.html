@@ -65,7 +65,27 @@ state.notes=state.notes||[];
 state.shopping.forEach(x=>x.cat=x.cat||'Autre');
 state.recipes.forEach(r=>{r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes';if(r.keepUnit==='années')r.keepUnit='année'});state.stock.forEach(x=>x.photo=x.photo||'');
 state.agenda=Array.isArray(state.agenda)?state.agenda:[];state.agenda.forEach(x=>{x.notifyTime=x.notifyTime||startTime(x.time,x.duration||0);x.duration=Number(x.duration)||0;x.date=String(x.date||'').slice(0,10)});
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(state));return true}
+  catch(e){
+    console.warn('Stockage principal plein, tentative de sauvegarde compacte',e);
+    try{
+      const compact=JSON.parse(JSON.stringify(state));
+      // Les photos en base64 prennent énormément de place dans localStorage.
+      // On conserve toutes les données fonctionnelles (recettes, stock, agenda, courses)
+      // et on retire uniquement les copies d'images trop volumineuses.
+      (compact.recipes||[]).forEach(r=>{delete r.photos;delete r.photo});
+      (compact.stock||[]).forEach(x=>{delete x.photo});
+      (compact.agenda||[]).forEach(x=>{delete x.photo});
+      localStorage.setItem(KEY,JSON.stringify(compact));
+      return true;
+    }catch(e2){
+      console.error('Sauvegarde impossible',e2);
+      toast('Impossible d’enregistrer : stockage du navigateur plein. Libère de l’espace du navigateur puis réessaie.');
+      return false;
+    }
+  }
+}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 let currentView='recipes';
 let navigationReady=false;
 function applyView(v){currentView=v||'recipes';document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===currentView));document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===currentView));document.getElementById('fab').style.display=currentView==='recipes'?'block':'none';renderAll()}
@@ -196,7 +216,7 @@ function openRecipeModal(){document.getElementById('modal').className='modal';do
 
 function previewRecipeImage(e){previewRecipeImages(e)}
 function previewRecipeImages(e){let wrap=document.getElementById('rphotoPreviewWrap');if(!wrap)return;let files=Array.from(e.target.files||[]).slice(0,2);if(e.target.files?.length>2)toast('2 photos maximum');wrap.innerHTML=files.map(f=>`<img class="photo-preview-inline" src="${URL.createObjectURL(f)}" alt="Aperçu">`).join('')}
-function resizeRecipeImage(file){return new Promise((resolve,reject)=>{if(!file)return resolve('');let reader=new FileReader();reader.onload=()=>{let im=new Image();im.onload=()=>{let max=1000,w=im.width,h=im.height;if(Math.max(w,h)>max){if(w>=h){h=Math.round(h*max/w);w=max}else{w=Math.round(w*max/h);h=max}}let c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);resolve(c.toDataURL('image/jpeg',0.78))};im.onerror=reject;im.src=reader.result};reader.onerror=reject;reader.readAsDataURL(file)})}
+function resizeRecipeImage(file){return new Promise((resolve,reject)=>{if(!file)return resolve('');let reader=new FileReader();reader.onload=()=>{let im=new Image();im.onload=()=>{let max=600,w=im.width,h=im.height;if(Math.max(w,h)>max){if(w>=h){h=Math.round(h*max/w);w=max}else{w=Math.round(w*max/h);h=max}}let c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);resolve(c.toDataURL('image/jpeg',0.55))};im.onerror=reject;im.src=reader.result};reader.onerror=reject;reader.readAsDataURL(file)})}
 async function saveRecipe(editId){let name=document.getElementById('rn').value.trim();if(!name)return toast('Indique un nom');let files=Array.from(document.getElementById('rphoto')?.files||[]).slice(0,2),photos=[];try{for(const file of files)photos.push(await resizeRecipeImage(file))}catch(e){return toast('Impossible de lire cette photo')}let old=editId?state.recipes.find(x=>x.id===editId):null;let oldPhotos=old?(Array.isArray(old.photos)?old.photos:(old.photo?[old.photo]:[])):[];let data={name,cat:document.getElementById('rc').value,emoji:'',prep:Number(document.getElementById('rp').value)||0,cook:Number(document.getElementById('rcu').value)||0,serv:Number(document.getElementById('rs').value)||1,servUnit:document.getElementById('rsu').value||'personnes',cost:Number(document.getElementById('rco').value)||0,keep:Number(document.getElementById('rk').value)||0,keepUnit:document.getElementById('rku').value,keepPlace:document.getElementById('rkp').value,ingredients:document.getElementById('ri').value.split('\n').map(x=>x.trim()),steps:document.getElementById('rst').value.split('\n').map(x=>x.trim())};if(editId){let r=old;if(!r)return;Object.assign(r,data);if(files.length){r.photos=photos;r.photo=photos[0]||''}else{r.photos=oldPhotos;r.photo=oldPhotos[0]||''}save();closeModal();renderRecipes();toast('Recette modifiée ✨');openRecipe(editId)}else{state.recipes.push({id:Date.now(),...data,photos,photo:photos[0]||'',used:{}});save();closeModal();renderRecipes();toast(photos.length?'Recette créée avec ses photos 📷':'Recette créée')}}
 
 function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><p>Personnalise les catégories de recettes et de courses comme tu veux.</p><h3>📖 Catégories des recettes</h3><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter une catégorie</button></div><h3>🛒 Catégories des courses</h3><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter une catégorie</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin-left:8px" onclick="exportData()">Exporter mes données</button><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderCategorySettings()}
