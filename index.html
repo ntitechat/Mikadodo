@@ -243,30 +243,33 @@ function recipeIngredientAvailability(recipe){
       return;
     }
 
-    // Si l'ingrédient est lié à un article de courses, on utilise ce lien
-    // en priorité.
+    // Si l'ingrédient est lié à un article de courses, ce lien est la source
+    // de vérité. On ne fait surtout pas de rapprochement textuel avec un autre
+    // article : par exemple "patate douce rouge" ne doit pas être considéré
+    // disponible parce que "patate douce" est dans les courses.
     const link=links[i];
     if(link?.shoppingId){
       const linkedShop=shopping.find(x=>Number(x.id)===Number(link.shoppingId));
       if(linkedShop && linkedShop.done){
         have++;
-        return;
+      } else {
+        missing++;
       }
+      return;
     }
 
-    // Sinon, comparaison souple du texte : on ignore les quantités et unités
-    // pour reconnaître "500 g pommes de terre" avec "pommes de terre".
+    // Sans lien explicite, comparaison souple du texte : on ignore les
+    // quantités et unités, mais TOUS les mots significatifs de l'ingrédient
+    // doivent être présents dans l'article pour éviter les faux positifs.
     const ingredientWords=normalized
       .split(' ')
       .filter(w=>w.length>=3 && !/^(g|kg|ml|cl|l|mg|cuillere|cuilleres|c|a|s|cs|cc|piece|pieces|x)$/.test(w));
 
     const found=availableText.some(item=>{
-      if(item===normalized || item.includes(normalized) || normalized.includes(item)) return true;
       const itemWords=item.split(' ').filter(w=>w.length>=3);
       const useful=ingredientWords.filter(w=>!['de','du','des','le','la','les','et','ou','au','aux'].includes(w));
       if(!useful.length) return false;
-      const matched=useful.filter(w=>itemWords.includes(w)).length;
-      return matched>=Math.max(1, Math.ceil(useful.length*0.6));
+      return useful.every(w=>itemWords.includes(w));
     });
 
     if(found) have++; else missing++;
