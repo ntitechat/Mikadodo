@@ -219,6 +219,10 @@ function normalizeIngredientForMatch(value){
     .trim();
 }
 
+function isRecipeIngredientTitle(value){
+  return String(value||'').trim().startsWith('*');
+}
+
 function recipeIngredientAvailability(recipe){
   const shopping = Array.isArray(state.shopping)?state.shopping:[];
   const availableText = shopping
@@ -231,7 +235,7 @@ function recipeIngredientAvailability(recipe){
 
   (Array.isArray(recipe.ingredients)?recipe.ingredients:[]).forEach((ingredient,i)=>{
     const raw=String(ingredient||'').trim();
-    if(!raw || raw.startsWith('*')) return;
+    if(!raw || isRecipeIngredientTitle(raw)) return;
 
     total++;
     const normalized=normalizeIngredientForMatch(raw);
@@ -338,7 +342,7 @@ function showRecipeMissingIngredients(recipeId){
   const links=Array.isArray(r.ingredientLinks)?r.ingredientLinks:[];
   (Array.isArray(r.ingredients)?r.ingredients:[]).forEach((ingredient,i)=>{
     const raw=String(ingredient||'').trim();
-    if(!raw||raw.startsWith('*')||isAlwaysAvailableIngredient(raw))return;
+    if(!raw||isRecipeIngredientTitle(raw)||isAlwaysAvailableIngredient(raw))return;
     const link=links[i];
     if(link?.shoppingId){
       const shop=state.shopping.find(x=>Number(x.id)===Number(link.shoppingId));
