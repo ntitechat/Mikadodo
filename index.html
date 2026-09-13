@@ -303,7 +303,7 @@ function renderRecipes(){
   // y compris celles auxquelles il manque 1 ingrédient ou davantage.
   if(cookableRecipesOnly){
     a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
-      .filter(r=>r._availability.missing<=3)
+      .filter(r=>r._availability.missing<=5)
       .sort((x,y)=>{
         const xm=x._availability, ym=y._availability;
         if(ym.have!==xm.have)return ym.have-xm.have;
