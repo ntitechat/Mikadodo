@@ -43,6 +43,16 @@
 .recipe-edit-modal .actions{margin-top:11px}
 .shopping-ingredients-filter{background:#e91e63;color:#fff;border-color:#e91e63}.shopping-ingredients-filter:hover{background:#d81b60;border-color:#d81b60}
 </style>
+
+<style>
+.shopping-ingredient-filter-btn{
+  background:#f9c8d8 !important;
+  background-color:#f9c8d8 !important;
+  padding:6px 10px !important;
+  font-size:12px !important;
+  border-radius:12px !important;
+}
+</style>
 </head>
 <body>
 <div class="app">
@@ -68,7 +78,7 @@
  <div id="calendar" class="calendar"></div>
 </section>
 <section id="shopping" class="view">
- <div class="section-head"><h2>Liste de courses</h2><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="openShopModal()">＋ Article</button><button class="btn shopping-ingredients-filter" onclick="cycleShoppingIngredientFilter()" id="shoppingIngredientsFilterBtn">afficher les ingrédients à acheter</button></div></div>
+ <div class="section-head"><h2>Liste de courses</h2><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="openShopModal()">＋ Article</button><button class="btn shopping-ingredients-filter" onclick="cycleShoppingIngredientFilter()" id="shoppingIngredientsFilterBtn" class="shopping-ingredient-filter-btn">afficher les ingrédients à acheter</button></div></div>
  
  <div id="shopList"></div>
 </section><section id="notes" class="view"><div class="section-head"><div><h2>📝 Notes</h2><div class="small">Tes listes, simplement.</div></div></div><div class="note-add"><input id="noteInput" placeholder="Ajouter un élément…" onkeydown="if(event.key==='Enter')addNote()"><button class="btn purple" onclick="addNote()">＋</button></div><div id="notesList" class="notes-list"></div></section>
