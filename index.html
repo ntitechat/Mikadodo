@@ -222,6 +222,7 @@ function normalizeIngredientForMatch(value){
 function recipeIngredientAvailability(recipe){
   const shopping = Array.isArray(state.shopping)?state.shopping:[];
   const availableText = shopping
+    .filter(x=>x&&x.done)
     .map(x=>normalizeIngredientForMatch(x.name))
     .filter(Boolean);
 
@@ -245,9 +246,12 @@ function recipeIngredientAvailability(recipe){
     // Si l'ingrédient est lié à un article de courses, on utilise ce lien
     // en priorité.
     const link=links[i];
-    if(link?.shoppingId && shopping.some(x=>Number(x.id)===Number(link.shoppingId))){
-      have++;
-      return;
+    if(link?.shoppingId){
+      const linkedShop=shopping.find(x=>Number(x.id)===Number(link.shoppingId));
+      if(linkedShop && linkedShop.done){
+        have++;
+        return;
+      }
     }
 
     // Sinon, comparaison souple du texte : on ignore les quantités et unités
