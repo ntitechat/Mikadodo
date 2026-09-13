@@ -130,7 +130,7 @@ history.replaceState({mikadodo:true,view:'recipes'},'',location.href.split('#')[
 history.pushState({mikadodo:true,view:'recipes'},'',`#recipes`);
 navigationReady=true;
 function renderAll(){syncStockExpiryAgenda();renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
-const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all',shoppingSearch='',shoppingIngredientFilter='toBuy';
+const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all',shoppingSearch='',shoppingIngredientFilter='all';
 function formatDuration(minutes){minutes=Number(minutes)||0;if(minutes<=0)return '';if(minutes<60)return `${minutes}min`;let h=Math.floor(minutes/60),m=minutes%60;return m?`${h}h${String(m).padStart(2,'0')}`:`${h}h`}
 function servingMeta(r){
   const units={
@@ -385,13 +385,13 @@ function shopMoney(n){let v=Number(n)||0;return Number.isInteger(v)?v+' €':v.t
 
 
 function cycleShoppingIngredientFilter(){
-  shoppingIngredientFilter=shoppingIngredientFilter==='toBuy'?'bought':shoppingIngredientFilter==='bought'?'all':'toBuy';
+  shoppingIngredientFilter=shoppingIngredientFilter==='all'?'toBuy':shoppingIngredientFilter==='toBuy'?'bought':'all';
   renderShopping();
 }
 function updateShoppingIngredientFilterButton(){
   const btn=document.getElementById('shoppingIngredientsFilterBtn');
   if(!btn)return;
-  btn.textContent=shoppingIngredientFilter==='toBuy'?'afficher les ingrédients à acheter':shoppingIngredientFilter==='bought'?'afficher les ingrédients achetés':'afficher tous les ingrédients';
+  btn.textContent=shoppingIngredientFilter==='all'?'afficher les ingrédients à acheter':shoppingIngredientFilter==='toBuy'?'afficher les ingrédients achetés':'afficher tous les ingrédients';
 }
 function toggleShop(id){let x=state.shopping.find(s=>s.id===id);x.done=!x.done;save();renderShopping()}function removeShop(id){state.shopping=state.shopping.filter(x=>x.id!==id);save();renderShopping()}
 
