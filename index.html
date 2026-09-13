@@ -81,14 +81,14 @@
 
 <style id="shopping-filter-small-pastel">
 .shopping-ingredient-filter-btn{
-  padding:4px 7px !important;
-  font-size:10px !important;
+  padding:3px 6px !important;
+  font-size:9px !important;
   line-height:1.2 !important;
   border-radius:10px !important;
-  background:#f7dfe8 !important;
-  background-color:#f7dfe8 !important;
-  color:#8f6370 !important;
-  border:1px solid #edc6d2 !important;
+  background:#fbeaf0 !important;
+  background-color:#fbeaf0 !important;
+  color:#a9828e !important;
+  border:1px solid #f1d9e1 !important;
   min-height:0 !important;
   height:auto !important;
   width:auto !important;
@@ -120,7 +120,7 @@
  <div id="calendar" class="calendar"></div>
 </section>
 <section id="shopping" class="view">
- <div class="section-head"><h2>Liste de courses</h2><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="openShopModal()">＋ Article</button><button class="btn shopping-ingredients-filter" onclick="cycleShoppingIngredientFilter()" id="shoppingIngredientsFilterBtn" class="shopping-ingredient-filter-btn">afficher les ingrédients à acheter</button></div></div>
+ <div class="section-head"><h2>Liste de courses</h2><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="openShopModal()">＋ Article</button><button class="btn shopping-ingredient-filter-btn" onclick="cycleShoppingIngredientFilter()" id="shoppingIngredientsFilterBtn">afficher les ingrédients à acheter</button></div></div>
  
  <div id="shopList"></div>
 </section><section id="notes" class="view"><div class="section-head"><div><h2>📝 Notes</h2><div class="small">Tes listes, simplement.</div></div></div><div class="note-add"><input id="noteInput" placeholder="Ajouter un élément…" onkeydown="if(event.key==='Enter')addNote()"><button class="btn purple" onclick="addNote()">＋</button></div><div id="notesList" class="notes-list"></div></section>
