@@ -52,6 +52,31 @@
   font-size:12px !important;
   border-radius:12px !important;
 }
+
+.cookable-recipes-btn{
+  border:1px solid #f2b6c8;
+  background:#fde3eb;
+  color:#9b4963;
+  border-radius:14px;
+  padding:6px 9px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.cookable-recipes-btn.active{
+  background:#f4b6c9;
+  color:#fff;
+}
+.recipe-availability{
+  margin-top:7px;
+  font-size:12px;
+  font-weight:700;
+  color:#9b4963;
+}
+.recipe-availability.complete{
+  color:#4f8b67;
+}
 </style>
 </head>
 <body>
@@ -62,7 +87,7 @@
 </header>
 <main>
 <section id="recipes" class="view active">
- <div class="section-head"><h2>Mes recettes</h2></div>
+ <div class="section-head"><h2>Mes recettes</h2><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div>
  <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette, un ingrédient…" oninput="renderRecipes()"/>
  <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
 </section>
@@ -141,6 +166,7 @@ history.pushState({mikadodo:true,view:'recipes'},'',`#recipes`);
 navigationReady=true;
 function renderAll(){syncStockExpiryAgenda();renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all',shoppingSearch='',shoppingIngredientFilter='all';
+let cookableRecipesOnly=false;
 function formatDuration(minutes){minutes=Number(minutes)||0;if(minutes<=0)return '';if(minutes<60)return `${minutes}min`;let h=Math.floor(minutes/60),m=minutes%60;return m?`${h}h${String(m).padStart(2,'0')}`:`${h}h`}
 function servingMeta(r){
   const units={
@@ -164,8 +190,119 @@ function servingMeta(r){
 }
 function durationMeta(r){const total=formatDuration((Number(r.prep)||0)+(Number(r.cook)||0));return total?`⏱️ ${total}`:''}
 function deleteRecipe(id){let r=state.recipes.find(x=>x.id===id);if(!r)return;if(!confirm(`Supprimer la recette « ${r.name} » ? Cette action est irréversible.`))return;state.recipes=state.recipes.filter(x=>x.id!==id);state.agenda=state.agenda.filter(x=>x.recipeId!==id);save();closeModal();renderAll();updateReminder();toast('Recette supprimée')}
-function renderRecipes(){let q=(document.getElementById('recipeSearch')?.value||'').toLowerCase();document.getElementById('recipeChips').innerHTML=cats().map(c=>{let count=c==='Toutes'?state.recipes.length:state.recipes.filter(r=>r.cat===c).length;return `<button class="chip ${activeCat===c?'active':''}" onclick="setRecipeCategory('${encodeURIComponent(c)}')">${esc(c)} ${count}</button>`}).join('');let a=state.recipes.filter(r=>(activeCat==='Toutes'||r.cat===activeCat)&&(!q||r.name.toLowerCase().includes(q)||r.ingredients.join(' ').toLowerCase().includes(q))).sort((x,y)=>{if(activeCat!=='Toutes')return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});let cx=state.recipeCategories.indexOf(x.cat),cy=state.recipeCategories.indexOf(y.cat);if(cx!==cy)return (cx<0?999:cx)-(cy<0?999:cy);return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});});document.getElementById('recipeGrid').innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||'jours')}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette trouvée.</div>'}
 
+function normalizeIngredientForMatch(value){
+  return String(value||'')
+    .toLocaleLowerCase('fr')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[’']/g,"'")
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim();
+}
+
+function recipeIngredientAvailability(recipe){
+  const shopping = Array.isArray(state.shopping)?state.shopping:[];
+  const availableText = shopping
+    .map(x=>normalizeIngredientForMatch(x.name))
+    .filter(Boolean);
+
+  const links = Array.isArray(recipe.ingredientLinks)?recipe.ingredientLinks:[];
+  let total=0, have=0, missing=0;
+
+  (Array.isArray(recipe.ingredients)?recipe.ingredients:[]).forEach((ingredient,i)=>{
+    const raw=String(ingredient||'').trim();
+    if(!raw || raw.startsWith('*')) return;
+
+    total++;
+    const normalized=normalizeIngredientForMatch(raw);
+
+    // Eau et sel sont considérés disponibles comme dans la vérification
+    // existante de la fiche recette.
+    if(/(^| )(?:eau|sel)( |$)/.test(normalized)){
+      have++;
+      return;
+    }
+
+    // Si l'ingrédient est lié à un article de courses, on utilise ce lien
+    // en priorité.
+    const link=links[i];
+    if(link?.shoppingId && shopping.some(x=>Number(x.id)===Number(link.shoppingId))){
+      have++;
+      return;
+    }
+
+    // Sinon, comparaison souple du texte : on ignore les quantités et unités
+    // pour reconnaître "500 g pommes de terre" avec "pommes de terre".
+    const ingredientWords=normalized
+      .split(' ')
+      .filter(w=>w.length>=3 && !/^(g|kg|ml|cl|l|mg|cuillere|cuilleres|c|a|s|cs|cc|piece|pieces|x)$/.test(w));
+
+    const found=availableText.some(item=>{
+      if(item===normalized || item.includes(normalized) || normalized.includes(item)) return true;
+      const itemWords=item.split(' ').filter(w=>w.length>=3);
+      const useful=ingredientWords.filter(w=>!['de','du','des','le','la','les','et','ou','au','aux'].includes(w));
+      if(!useful.length) return false;
+      const matched=useful.filter(w=>itemWords.includes(w)).length;
+      return matched>=Math.max(1, Math.ceil(useful.length*0.6));
+    });
+
+    if(found) have++; else missing++;
+  });
+
+  return {total,have,missing};
+}
+
+function toggleCookableRecipes(){
+  cookableRecipesOnly=!cookableRecipesOnly;
+  renderRecipes();
+}
+
+function updateCookableRecipesButton(){
+  const btn=document.getElementById('cookableRecipesBtn');
+  if(!btn)return;
+  btn.classList.toggle('active',cookableRecipesOnly);
+  btn.textContent=cookableRecipesOnly?'🍳 Toutes les recettes':'🍳 Recettes faisables';
+}
+
+function renderRecipes(){
+  let q=(document.getElementById('recipeSearch')?.value||'').toLowerCase();
+  document.getElementById('recipeChips').innerHTML=cats().map(c=>{
+    let count=c==='Toutes'?state.recipes.length:state.recipes.filter(r=>r.cat===c).length;
+    return `<button class="chip ${activeCat===c?'active':''}" onclick="setRecipeCategory('${encodeURIComponent(c)}')">${esc(c)} ${count}</button>`;
+  }).join('');
+
+  let a=state.recipes.filter(r=>
+    (activeCat==='Toutes'||r.cat===activeCat)&&
+    (!q||r.name.toLowerCase().includes(q)||r.ingredients.join(' ').toLowerCase().includes(q))
+  );
+
+  // Le bouton affiche toutes les recettes compatibles avec la liste de courses,
+  // y compris celles auxquelles il manque 1 ingrédient ou davantage.
+  if(cookableRecipesOnly){
+    a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
+      .sort((x,y)=>{
+        const xm=x._availability, ym=y._availability;
+        if(ym.have!==xm.have)return ym.have-xm.have;
+        if(xm.missing!==ym.missing)return xm.missing-ym.missing;
+        return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
+      });
+  }else{
+    a=a.sort((x,y)=>{
+      if(activeCat!=='Toutes')return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
+      let cx=state.recipeCategories.indexOf(x.cat),cy=state.recipeCategories.indexOf(y.cat);
+      if(cx!==cy)return (cx<0?999:cx)-(cy<0?999:cy);
+      return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
+    });
+  }
+
+  document.getElementById('recipeGrid').innerHTML=a.length?a.map(r=>{
+    const av=cookableRecipesOnly?(r._availability||recipeIngredientAvailability(r)):null;
+    const availability=av?`<div class="recipe-availability ${av.missing===0?'complete':''}">${av.missing===0?'✅ Tu peux la faire !':`🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}`}</div>`:'';
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||'jours')}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${availability}</div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
+  }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
+
+  updateCookableRecipesButton();
+}
 function verifyRecipeIngredients(id){let r=state.recipes.find(x=>x.id===Number(id));if(!r)return;r.ingredientAvailable={};let links=r.ingredientLinks||[];let found=0;let checked=0;r.ingredients.forEach((ingredient,i)=>{let text=String(ingredient||'').trim();if(!text||text.startsWith('*'))return;let lower=text.toLocaleLowerCase('fr');let alwaysAvailable=/(^|[^a-zàâäéèêëîïôöùûüÿç])(?:eau|sel)(?=[^a-zàâäéèêëîïôöùûüÿç]|$)/i.test(lower);if(alwaysAvailable){r.ingredientAvailable[i]=true;found++;return}let link=links[i];if(!link?.shoppingId)return;checked++;let shop=state.shopping.find(x=>Number(x.id)===Number(link.shoppingId));if(shop&&shop.done){r.ingredientAvailable[i]=true;found++}});save();openRecipe(r.id);toast(found?`${found} ingrédient${found>1?'s':''} trouvé${found>1?'s':''} dans les courses 🟢`:'Aucun ingrédient acheté trouvé') }
 let activeRecipeId=null;function openRecipe(id){activeRecipeId=Number(id);let r=state.recipes.find(x=>x.id===id);if(!r)return;r.used=r.used||{};r.ingredientAvailable=r.ingredientAvailable||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);let photos=r.photos;let displayIngredients=Array.isArray(r._temporaryScaledIngredients)?r._temporaryScaledIngredients:r.ingredients;let displayServ=Number(r._temporaryScaledServings)||Number(r.serv)||1;let lines=[formatDuration(r.prep)?`⏱️ Préparation : <b>${formatDuration(r.prep)}</b>`:'',formatDuration(r.cook)?`🔥 Cuisson : <b>${formatDuration(r.cook)}</b>`:'',formatDuration((Number(r.prep)||0)+(Number(r.cook)||0))?`⏱️ Total : <b>${formatDuration((Number(r.prep)||0)+(Number(r.cook)||0))}</b>`:''].filter(Boolean).join('<br>');let gallery=photos.length?`<div class="recipe-gallery"><img id="recipeMainPhoto" class="recipe-detail-photo" src="${photoSrc(photos[0])||''}" alt="${esc(r.name)}" onclick="cycleRecipePhoto(${r.id})">${photos.length>1?`<div class="photo-counter">📷 1 / ${photos.length} — touche la photo pour défiler</div>`:''}</div>`:'';document.getElementById('modal').className='modal recipe-detail-modal';document.getElementById('modal').innerHTML=`<div class="row"><button class="btn ghost" onclick="closeModal()">← Retour</button><div class="shop-actions"><button class="btn ghost" onclick="openRecipeEdit(${r.id})">✏️ Modifier</button><button class="btn danger" style="background:var(--danger)" onclick="deleteRecipe(${r.id})">🗑️ Supprimer</button></div></div>${gallery}<h2 style="font-size:22px;margin-bottom:6px">${esc(r.name)}</h2><div class="meta">${esc(r.cat)} · ${esc(String(displayServ))} ${esc(r.servUnit||'personnes')} · 💰${recipeMoney(r.cost)}</div><p>${lines?lines+'<br>':''}🧊 Conservation : <b>${r.keep} ${r.keepUnit} au ${r.keepPlace.toLowerCase()}</b></p><div class="actions" style="justify-content:flex-start;margin:12px 0 8px"><button class="btn ghost" onclick="openRecipeScaler(${r.id})" aria-label="Ajuster les quantités" title="Ajuster les quantités">⚖️</button><button class="btn ghost" onclick="verifyRecipeIngredients(${r.id})">🔎 Vérifier les ingrédients</button></div><div class="small" style="margin-bottom:8px">🛒 Vérification automatique des ingrédients acheté</div><h3>Ingrédients</h3><ul class="ingredient-list">${displayIngredients.map((i,n)=>{let v=String(i||'');if(!v.trim())return '<li class="ingredient-row" style="min-height:18px;padding:5px 0"></li>';if(v.trim().startsWith('*'))return `<li class="ingredient-row" style="font-weight:400;padding-left:0"><span>${esc(v.trim().replace(/^\*\s*/,''))}</span></li>`;let link=r.ingredientLinks?.[n];let shop=link?.shoppingId!=null?state.shopping.find(x=>Number(x.id)===Number(link.shoppingId)):null;return `<li class="ingredient-row ${r.used[n]?'used':''}"><input type="checkbox" ${r.used[n]?'checked':''} onchange="toggleIngredientUsed(${r.id},${n},this.checked)"><span>${esc(v)}${(isAlwaysAvailableIngredient(v)&&r.ingredientAvailable[n] || (r.ingredientAvailable[n]&&shop&&shop.done))?` <small style="font-weight:700;white-space:nowrap">🟢</small>`:''}</span></li>`}).join('')}</ul><h3>Préparation</h3><div>${r.steps.map(s=>String(s||'').trim()?`<div style="margin:10px 0">${esc(s)}</div>`:'<div style="height:16px"></div>').join('')}</div>${r.cook>0?`<div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="btn purple" onclick="startCookingTimer(${r.cook},'${encodeURIComponent(r.name)}')">⏱️ Lancer le minuteur (${formatDuration(r.cook)})</button></div>`:''}<div class="actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px"><button class="btn" onclick="addRecipeToStock(${r.id})">🧊 Mettre dans le stock</button><button class="btn purple" onclick="prefillAgenda(${r.id})">📅 Ajouter au calendrier</button></div></div>`;showModal()}
 function openRecipeEdit(id){let r=state.recipes.find(x=>x.id===id);if(!r)return;window.editingRecipeId=id;r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);document.getElementById('modal').className='modal recipe-edit-modal';document.getElementById('modal').innerHTML=`<h2>✏️ Modifier la recette</h2><div class="form-grid"><div class="field full"><label>Nom</label><input id="rn" value="${esc(r.name)}"></div><div class="field full"><label>Photos de la recette (2 maximum)</label><input id="rphoto" type="file" accept="image/*" multiple onchange="previewRecipeImages(event)"><div class="photo-help">📷 Tu peux choisir jusqu’à 2 photos. La première sera affichée sur la page d’accueil.</div><div id="rphotoPreviewWrap" class="photo-preview-wrap">${r.photos.map(src=>`<img class="photo-preview-inline" src="${photoSrc(src)||''}" alt="Aperçu">`).join('')}</div></div><div class="field"><label>Catégorie</label><select id="rc">${state.recipeCategories.map(x=>`<option ${r.cat===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="field"><label>Préparation (min)</label><input id="rp" type="number" value="${r.prep}"></div><div class="field"><label>Cuisson (min)</label><input id="rcu" type="number" value="${r.cook}"></div><div class="field"><label>Quantité</label><input id="rs" type="number" value="${r.serv}"></div><div class="field"><label>Type de quantité</label><select id="rsu"><option value="personnes" ${r.servUnit==='personnes'?'selected':''}>👥 Personnes</option><option value="sandwichs" ${r.servUnit==='sandwichs'?'selected':''}>🥪 Sandwichs</option><option value="gaufres" ${r.servUnit==='gaufres'?'selected':''}>🧇 Gaufres</option><option value="parts" ${r.servUnit==='parts'?'selected':''}>🍰 Parts</option><option value="biscuits" ${r.servUnit==='biscuits'?'selected':''}>🍪 Biscuits</option><option value="crepes" ${r.servUnit==='crepes'?'selected':''}>🥞 Crêpes</option><option value="donuts" ${r.servUnit==='donuts'?'selected':''}>🍩 Donuts</option><option value="pots" ${r.servUnit==='pots'?'selected':''}>🍯 Pots</option><option value="bouteilles" ${r.servUnit==='bouteilles'?'selected':''}>🧃 Bouteilles</option><option value="sachets" ${r.servUnit==='sachets'?'selected':''}>🛍️ Sachets</option><option value="onigiri" ${r.servUnit==='onigiri'?'selected':''}>🍙 Onigiri</option><option value="glace" ${r.servUnit==='glace'?'selected':''}>🍦 Glace</option><option value="gateaux" ${r.servUnit==='gateaux'?'selected':''}>🎂 Gâteaux</option></select></div><div class="field"><label>Coût estimé (€)</label><input id="rco" type="number" step="0.01" value="${r.cost}"></div><div class="field"><label>Conservation</label><input id="rk" type="number" value="${r.keep}"></div><div class="field"><label>Unité</label><select id="rku"><option ${r.keepUnit==='jours'?'selected':''}>jours</option><option ${r.keepUnit==='semaines'?'selected':''}>semaines</option><option ${r.keepUnit==='mois'?'selected':''}>mois</option><option ${r.keepUnit==='année'?'selected':''}>année</option></select></div><div class="field"><label>Stockage</label><select id="rkp"><option ${r.keepPlace==='Réfrigérateur'?'selected':''}>Réfrigérateur</option><option ${r.keepPlace==='Congélateur'?'selected':''}>Congélateur</option><option ${r.keepPlace==='Placard'?'selected':''}>Placard</option></select></div><div class="field full"><label>Ingrédients (1 par ligne)</label><textarea id="ri" rows="7" oninput="renderRecipeIngredientLinks()">${esc(r.ingredients.join('\n'))}</textarea><div id="recipeIngredientLinks"></div><div class="small">Associe chaque ingrédient à un article de la liste de courses et indique la quantité utilisée par recette.</div></div><div class="field full"><label>Préparation (1 étape par ligne)</label><textarea id="rst" rows="7">${esc(r.steps.join('\n'))}</textarea></div></div><div class="actions"><button class="btn ghost" onclick="openRecipe(${r.id})">Annuler</button><button class="btn purple" onclick="saveRecipe(${r.id})">Enregistrer</button></div>`;showModal();renderRecipeIngredientLinks()}
