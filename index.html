@@ -107,7 +107,7 @@
 <main>
 <section id="recipes" class="view active">
  <div class="section-head"><h2>Mes recettes</h2><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div>
- <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette, un ingrédient…" oninput="renderRecipes()"/>
+ <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" oninput="renderRecipes()"/>
  <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
 </section>
 <section id="stock" class="view">
@@ -304,7 +304,7 @@ function renderRecipes(){
 
   let a=state.recipes.filter(r=>
     (activeCat==='Toutes'||r.cat===activeCat)&&
-    (!q||r.name.toLowerCase().includes(q)||r.ingredients.join(' ').toLowerCase().includes(q))
+    (!q||r.name.toLowerCase().includes(q))
   );
 
   // Le bouton affiche les recettes compatibles avec la liste de courses,
