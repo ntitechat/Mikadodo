@@ -78,6 +78,23 @@
   color:#4f8b67;
 }
 </style>
+
+<style id="shopping-filter-small-pastel">
+.shopping-ingredient-filter-btn{
+  padding:4px 7px !important;
+  font-size:10px !important;
+  line-height:1.2 !important;
+  border-radius:10px !important;
+  background:#f7dfe8 !important;
+  background-color:#f7dfe8 !important;
+  color:#8f6370 !important;
+  border:1px solid #edc6d2 !important;
+  min-height:0 !important;
+  height:auto !important;
+  width:auto !important;
+}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -280,6 +297,7 @@ function renderRecipes(){
   // y compris celles auxquelles il manque 1 ingrédient ou davantage.
   if(cookableRecipesOnly){
     a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
+      .filter(r=>r._availability.missing<=3)
       .sort((x,y)=>{
         const xm=x._availability, ym=y._availability;
         if(ym.have!==xm.have)return ym.have-xm.have;
