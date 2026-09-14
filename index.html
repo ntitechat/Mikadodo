@@ -679,7 +679,7 @@ async function createBreakfastDish(){
 
   const missing=[];
   if(!items[0])missing.push('un laitage');
-  if(!items[1])missing.push('une céréale');
+  if(!items[1])missing.push('un féculent');
   if(!items[2])missing.push('un fruit');
 
   const modal=document.getElementById('breakfastDishModal');
@@ -696,7 +696,7 @@ async function createBreakfastDish(){
   // Affiche immédiatement les 3 photos côte à côte.
   const labels=[
     ['🥛','Laitage'],
-    ['🌾','Céréales'],
+    ['🌾','Féculents'],
     ['🍎','Fruit']
   ];
 
