@@ -441,7 +441,7 @@ function updateCookableRecipesButton(){
 }
 
 const BREAKFAST_TYPES=['laitage','céréales','fruit'];
-const BREAKFAST_TYPE_LABELS={laitage:'🥛 Laitage',céréales:'🌾 Céréales',fruit:'🍎 Fruit'};
+const BREAKFAST_TYPE_LABELS={laitage:'🥛 Laitage',céréales:'🌾 Féculents',fruit:'🍎 Fruit'};
 function recipeTypes(r){
   return Array.isArray(r?.types)?r.types.filter(t=>BREAKFAST_TYPES.includes(t)):[];
 }
@@ -621,7 +621,7 @@ async function buildBreakfastDish(items){
     images.push(await loadBreakfastDishImage(src));
   }
 
-  const labels=['🥛 Laitage','🌾 Céréales','🍎 Fruit'];
+  const labels=['🥛 Laitage','🌾 Féculents','🍎 Fruit'];
   const gap=14;
   const innerX=box.x+16;
   const innerY=box.y+16;

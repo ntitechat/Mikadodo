@@ -353,7 +353,7 @@ function updateCookableRecipesButton(){
 }
 
 const BREAKFAST_TYPES=['laitage','céréales','fruit'];
-const BREAKFAST_TYPE_LABELS={laitage:'🥛 Laitage',céréales:'🌾 Céréales',fruit:'🍎 Fruit'};
+const BREAKFAST_TYPE_LABELS={laitage:'🥛 Laitage',céréales:'🌾 Féculents',fruit:'🍎 Fruit'};
 function recipeTypes(r){
   return Array.isArray(r?.types)?r.types.filter(t=>BREAKFAST_TYPES.includes(t)):[];
 }
@@ -550,7 +550,7 @@ async function createBreakfastDish(){
       <div style="background:#FCEFF3;border-radius:24px;padding:14px 12px 18px;box-sizing:border-box;width:100%;">
         <div style="display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:flex-start;width:100%;gap:10px;">
           ${breakfastDishPhotoCard(items[0],'Laitage','🥛')}
-          ${breakfastDishPhotoCard(items[1],'Céréales','🌾')}
+          ${breakfastDishPhotoCard(items[1],'Féculents','🌾')}
           ${breakfastDishPhotoCard(items[2],'Fruit','🍎')}
         </div>
       </div>
@@ -601,7 +601,7 @@ async function buildBreakfastDishImageExact(items){
   const images=[];
   for(const item of items) images.push(await loadBreakfastDishImage(breakfastDishPhotoData(item)));
 
-  const labels=['🥛 Laitage','🌾 Céréales','🍎 Fruit'];
+  const labels=['🥛 Laitage','🌾 Féculents','🍎 Fruit'];
   const gap=18;
   const innerX=box.x+22;
   const innerY=box.y+22;
