@@ -98,29 +98,88 @@
 </style>
 
 <style id="breakfast-dish-generator-style">
-.breakfast-dish-image-wrap{
-  background:#fff;
-  border:1px solid var(--line);
-  border-radius:22px;
-  padding:8px;
-  margin:8px 0 14px;
+.breakfast-dish-result{
+  background:#FFFBFC;
+  border-radius:28px;
+  padding:22px;
 }
-.breakfast-dish-image{
+.breakfast-dish-title{
+  margin:4px 0 24px;
+  text-align:center;
+  color:#292326;
+  font-size:clamp(25px,3vw,38px);
+  font-weight:900;
+}
+.breakfast-dish-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px;
+  background:#FCEFF3;
+  border-radius:28px;
+  padding:20px;
+}
+.breakfast-dish-card{
+  min-width:0;
+  text-align:center;
+}
+.breakfast-dish-photo{
+  width:100%;
+  aspect-ratio:0.82;
+  overflow:hidden;
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 2px 8px rgba(70,40,50,.08);
+}
+.breakfast-dish-photo img{
   display:block;
   width:100%;
-  max-height:78vh;
-  object-fit:contain;
-  border-radius:17px;
-  background:#fff;
+  height:100%;
+  object-fit:cover;
+}
+.breakfast-dish-no-photo{
+  height:100%;
+  display:grid;
+  place-items:center;
+  font-size:48px;
+}
+.breakfast-dish-label{
+  margin-top:14px;
+  color:#292326;
+  font-size:clamp(17px,2vw,24px);
+  font-weight:900;
+}
+.breakfast-dish-name{
+  margin-top:6px;
+  color:#7D7478;
+  font-size:15px;
+  font-weight:600;
+  overflow-wrap:anywhere;
+}
+.breakfast-dish-balanced{
+  width:min(760px,90%);
+  margin:28px auto 4px;
+  padding:14px 20px;
+  border-radius:999px;
+  background:#E8A7B8;
+  color:#fff;
+  text-align:center;
+  font-size:clamp(18px,2.2vw,27px);
+  font-weight:900;
 }
 .breakfast-dish-actions{
   display:flex;
   gap:8px;
   justify-content:flex-end;
   flex-wrap:wrap;
+  margin-top:12px;
 }
-@media(max-width:560px){
-  .breakfast-dish-actions{justify-content:flex-end}
+@media(max-width:700px){
+  .breakfast-dish-grid{
+    grid-template-columns:1fr;
+  }
+  .breakfast-dish-photo{
+    aspect-ratio:1.25;
+  }
 }
 </style>
 
@@ -462,84 +521,33 @@ function loadBreakfastDishImage(src){
   });
 }
 
-async function buildBreakfastDishImage(items){
-  const canvas=document.createElement('canvas');
-  canvas.width=1200;
-  canvas.height=1200;
-  const ctx=canvas.getContext('2d');
-
-  // Le titre n'est affiché qu'une seule fois : dans l'image générée.
-  ctx.fillStyle='#FFFBFC';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  ctx.fillStyle='#292326';
-  ctx.textAlign='center';
-  ctx.textBaseline='middle';
-  ctx.font='900 58px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-  ctx.fillText('Ton petit déjeuner de ce matin',600,72);
-
-  // Trois grandes photos empilées pour qu'elles soient beaucoup plus visibles.
-  const box={x:55,y:125,w:1090,h:1015};
-  ctx.fillStyle='#FCEFF3';
-  ctx.beginPath();
-  ctx.roundRect(box.x,box.y,box.w,box.h,36);
-  ctx.fill();
-
-  const images=[];
-  for(const item of items){
-    images.push(await loadBreakfastDishImage(breakfastDishPhotoData(item)));
-  }
-
-  const emojis=['🥛','🍎','🌾'];
-  const gap=16;
-  const innerX=box.x+22;
-  const innerY=box.y+22;
-  const innerW=box.w-44;
-  const rowH=innerH=(box.h-44-gap*2)/3;
-  const photoH=rowH-54;
-
-  for(let i=0;i<3;i++){
-    const img=images[i];
-    const x=innerX;
-    const y=innerY+i*(rowH+gap);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(x,y,innerW,photoH,24);
-    ctx.clip();
-
-    if(img){
-      const scale=Math.max(innerW/img.naturalWidth,photoH/img.naturalHeight);
-      const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
-      ctx.drawImage(img,x+(innerW-iw)/2,y+(photoH-ih)/2,iw,ih);
-    }else{
-      ctx.fillStyle='#fff';
-      ctx.fillRect(x,y,innerW,photoH);
-    }
-    ctx.restore();
-
-    // Emoji correspondant placé juste sous la photo.
-    ctx.fillStyle='#292326';
-    ctx.font='900 42px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    ctx.fillText(emojis[i],600,y+photoH+27);
-  }
-
-  return canvas.toDataURL('image/png');
+function breakfastDishCard(item, label, emoji){
+  const src=breakfastDishPhotoData(item);
+  const name=esc(item?.name||'');
+  return `
+    <div class="breakfast-dish-card">
+      <div class="breakfast-dish-photo">
+        ${src
+          ? `<img src="${src}" alt="${name||label}" loading="eager">`
+          : `<div class="breakfast-dish-no-photo">📷</div>`}
+      </div>
+      <div class="breakfast-dish-label">${emoji} ${label}</div>
+      ${name ? `<div class="breakfast-dish-name">${name}</div>` : ''}
+    </div>`;
 }
 
 async function createBreakfastDish(){
+  // Une sélection indépendante pour chaque catégorie.
   const items=[
     pickBreakfastDishItem('laitage'),
-    pickBreakfastDishItem('fruit'),
-    pickBreakfastDishItem('céréales')
+    pickBreakfastDishItem('céréales'),
+    pickBreakfastDishItem('fruit')
   ];
 
   const missing=[];
   if(!items[0])missing.push('un laitage');
-  if(!items[1])missing.push('un fruit');
-  if(!items[2])missing.push('une céréale');
+  if(!items[1])missing.push('une céréale');
+  if(!items[2])missing.push('un fruit');
 
   const modal=document.getElementById('breakfastDishModal');
   const content=document.getElementById('breakfastDishContent');
@@ -552,22 +560,19 @@ async function createBreakfastDish(){
     return;
   }
 
-  content.innerHTML='<div class="small" style="text-align:center;padding:24px">✨ Je compose ton plat…</div>';
-
-  try{
-    const image=await buildBreakfastDishImage(items);
-    content.innerHTML=`
-      <div class="breakfast-dish-image-wrap">
-        <img id="generatedBreakfastDish" class="breakfast-dish-image" src="${image}" alt="Ton petit déjeuner de ce matin">
+  content.innerHTML=`
+    <div class="breakfast-dish-result">
+      <h2 class="breakfast-dish-title">Ton petit déjeuner de ce matin</h2>
+      <div class="breakfast-dish-grid">
+        ${breakfastDishCard(items[0],'Laitage','🥛')}
+        ${breakfastDishCard(items[1],'Céréales','🌾')}
+        ${breakfastDishCard(items[2],'Fruit','🍎')}
       </div>
-      <div class="breakfast-dish-actions">
-        <button class="btn" onclick="createBreakfastDish()">Nouveau plat</button>
-        <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>
-      </div>`;
-  }catch(e){
-    console.error(e);
-    content.innerHTML='<div class="empty">Impossible de créer l’image de ce plat.</div>';
-  }
+      <div class="breakfast-dish-balanced">Petit déjeuner équilibré</div>
+    </div>
+    <div class="breakfast-dish-actions">
+      <button class="btn" onclick="createBreakfastDish()">Nouveau plat</button>
+    </div>`;
 }
 
 function renderBreakfastRecipes(){
