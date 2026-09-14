@@ -102,7 +102,7 @@
 <div class="app">
 <header class="top">
   <div class="hero"></div>
-  <nav class="top-nav" aria-label="Navigation principale"><button class="active" data-view="recipes">📖 Recettes</button><button data-view="stock">🧊 Stock</button><button data-view="agenda">📅 Agenda</button><button data-view="shopping">🛒 Courses</button></nav>
+  <nav class="top-nav" aria-label="Navigation principale"><button class="active" data-view="recipes">📖 Recettes</button><button data-view="breakfast">🥐 Petit déjeuner</button><button data-view="stock">🧊 Stock</button><button data-view="agenda">📅 Agenda</button><button data-view="shopping">🛒 Courses</button></nav>
 </header>
 <main>
 <section id="recipes" class="view active">
@@ -133,7 +133,7 @@
 </section><section id="notes" class="view"><div class="section-head"><div><h2>📝 Notes</h2><div class="small">Tes listes, simplement.</div></div></div><div class="note-add"><input id="noteInput" placeholder="Ajouter un élément…" onkeydown="if(event.key==='Enter')addNote()"><button class="btn purple" onclick="addNote()">＋</button></div><div id="notesList" class="notes-list"></div></section>
 </main>
 <button class="fab" id="fab" onclick="quickAdd()">＋ Ajouter</button>
-<nav class="bottom"><button class="active" data-view="recipes">📖<br>Recettes</button><button data-view="stock">🧊<br>Stock</button><button data-view="agenda">📅<br>Agenda</button><button data-view="shopping">🛒<br>Courses</button><button data-view="notes">📝<br>Notes</button><button class="settings-bottom" onclick="openSettings()">⚙️<br>Paramètres</button></nav>
+<nav class="bottom"><button class="active" data-view="recipes">📖<br>Recettes</button><button data-view="breakfast">🥐<br>Petit déjeuner</button><button data-view="stock">🧊<br>Stock</button><button data-view="agenda">📅<br>Agenda</button><button data-view="shopping">🛒<br>Courses</button><button data-view="notes">📝<br>Notes</button><button class="settings-bottom" onclick="openSettings()">⚙️<br>Paramètres</button></nav>
 </div>
 <div id="photoZoom" class="photo-zoom" onclick="if(event.target===this)closePhotoZoom()"><button onclick="closePhotoZoom()">×</button><img id="photoZoomImg" alt="Photo agrandie"></div><div id="modalBack" class="modal-back" onclick="if(event.target===this)closeModal()"><div id="modal" class="modal"></div></div><div id="timerBar" class="timer-bar"><span>🔥 Cuisson</span><span id="timerTime" class="timer-time">00:00</span><button class="btn ghost mini" onclick="stopCookingTimer()">Arrêter</button></div><div id="timerAlarm" class="modal-back" style="z-index:90"><div class="modal" style="text-align:center"><h2>⏰ Minuteur terminé</h2><p id="timerAlarmText" class="small"></p><div class="actions" style="justify-content:center"><button class="btn ghost" onclick="stopCookingTimer()">⏹️ Éteindre</button><button class="btn" onclick="restartCookingTimer()">🔄 Relancer</button></div></div></div><div id="toast" class="toast"></div>
 <script>
