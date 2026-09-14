@@ -734,12 +734,45 @@ async function createBreakfastDish(){
     const actions=content.querySelector('.breakfast-dish-actions');
     if(actions){
       actions.insertAdjacentHTML('afterbegin',
-        `<a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>`);
+        `<button class="btn purple" onclick="addBreakfastDishToAgenda(${JSON.stringify(image)})">📅 Ajouter à l’agenda</button>
+         <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>`);
     }
   }catch(e){
     console.error(e);
   }
 }
+
+async function addBreakfastDishToAgenda(image){
+  if(!image)return;
+  try{
+    const photoRef=await putPhoto(image);
+    const today=localDateKey(new Date());
+    state.agenda=Array.isArray(state.agenda)?state.agenda:[];
+    state.agenda.push({
+      id:Date.now()+Math.random(),
+      type:'breakfast-dish',
+      recipeId:null,
+      name:'Petit déjeuner équilibré',
+      date:today,
+      moment:'Matin',
+      time:'09:00',
+      duration:0,
+      advisedTime:'09:00',
+      notifyTime:'09:00',
+      photo:photoRef
+    });
+    save();
+    renderAgenda();
+    updateReminder();
+    closeBreakfastDishModal();
+    switchView('agenda');
+    toast('Petit déjeuner ajouté à l’agenda à 9h ✅');
+  }catch(e){
+    console.error(e);
+    toast('Impossible d’ajouter le plat à l’agenda');
+  }
+}
+
 
 function renderBreakfastRecipes(){
   const grid=document.getElementById('breakfastGrid');
