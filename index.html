@@ -222,6 +222,25 @@
 }
 </style>
 
+
+<style>
+/* Interface compacte pour le formulaire Modifier/Ajouter un article */
+.modal{padding:16px;max-height:94vh}
+.modal h2{margin:0 0 12px;font-size:26px;line-height:1.15}
+.form-grid{gap:8px}
+.field{gap:4px}
+.field label{font-size:15px;font-weight:700;line-height:1.2}
+.field input,.field select,.field textarea{padding:9px 10px;border-radius:10px;min-height:40px}
+.field .small{margin-top:1px;line-height:1.2}
+.actions{margin-top:10px;gap:7px}
+@media(max-width:560px){
+  .modal{padding:14px;border-radius:20px 20px 0 0}
+  .modal h2{font-size:23px;margin-bottom:10px}
+  .form-grid{gap:7px}
+  .field label{font-size:14px}
+  .field input,.field select,.field textarea{padding:8px 9px;min-height:38px}
+}
+</style>
 </head>
 <body>
 <div class="app">
