@@ -709,8 +709,8 @@ async function createBreakfastDish(){
         ${src
           ? `<img src="${src}" alt="${name}">`
           : `<div style="width:100%;aspect-ratio:.9/1;border-radius:14px;background:#fff;display:grid;place-items:center;font-size:42px;">📷</div>`}
-        <div class="breakfast-dish-preview-label">${labels[i][0]} ${labels[i][1]}</div>
-        <div style="font-size:10px;color:#7D7478;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+        <div class="breakfast-dish-preview-label" style="font-weight:400;">${labels[i][0]} ${labels[i][1]}</div>
+        <div style="font-size:10px;color:#7D7478;font-weight:900;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
       </div>`;
   }).join('');
 
