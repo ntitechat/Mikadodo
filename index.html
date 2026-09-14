@@ -102,16 +102,7 @@
 <div class="app">
 <header class="top">
   <div class="hero"></div>
-  <nav class="top-nav" aria-label="Navigation principale"><button class="active" data-view="recipes">📖 Recettes</button><button data-view="breakfast">🥐 Petit déjeuner</button><button data-view="stock">🧊 Stock</button><button data-view="agenda">📅 Agenda</button><button data-view="shopping">🛒 Courses</button></nav>
-</header>
-<main>
-<section id="recipes" class="view active">
- <div class="section-head"><h2>Mes recettes</h2><div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;min-width:0"><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div></div>
- <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" oninput="renderRecipes()"/>
- <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
-</section>
-<section id="breakfast" class="view">
- <div class="section-head"><h2>🥐 Petit déjeuner</h2><button class="btn" onclick="openBreakfastRecipeModal()">＋ Ajouter</button></div>
+  <nav class="top-nav" aria-label="Navigation principale"><button class="active" data-view="recipes">📖 Recettes</button><button data-view="breakfast">🥐 Petit déjeuner</button></div>
  <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/>
  <div id="breakfastCategories" class="chips"></div>
  <div id="breakfastGrid" class="grid"></div>
