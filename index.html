@@ -519,22 +519,24 @@ function loadBreakfastDishImage(src){
   });
 }
 
-async function buildBreakfastDishImage(items){
+async function buildBreakfastDish(items){
   const canvas=document.createElement('canvas');
-  canvas.width=1200;
-  canvas.height=1120;
+  canvas.width=1400;
+  canvas.height=1000;
   const ctx=canvas.getContext('2d');
 
   ctx.fillStyle='#FFFBFC';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillRect(0,0,1400,1000);
 
   ctx.fillStyle='#292326';
   ctx.textAlign='center';
   ctx.textBaseline='middle';
   ctx.font='900 58px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-  ctx.fillText('Ton petit déjeuner de ce matin',600,72);
+  ctx.fillText('Ton petit déjeuner de ce matin',700,72);
 
-  const box={x:45,y:135,w:1110,h:880};
+  // Les 3 photos occupent toute la largeur, côte à côte :
+  // laitage → céréales → fruit.
+  const box={x:40,y:140,w:1320,h:700};
   ctx.fillStyle='#FCEFF3';
   ctx.beginPath();
   ctx.roundRect(box.x,box.y,box.w,box.h,36);
@@ -542,54 +544,74 @@ async function buildBreakfastDishImage(items){
 
   const images=[];
   for(const item of items){
-    const src = await breakfastDishPhotoData(item);
+    const src=await breakfastDishPhotoData(item);
     images.push(await loadBreakfastDishImage(src));
   }
 
-  // Une grande photo par ligne pour que les recettes soient bien visibles.
-  const labels=['🥛','🍎','🌾'];
-  const gap=18;
-  const innerX=box.x+24, innerY=box.y+24, innerW=box.w-48;
-  const rowH=(box.h-48-gap*2)/3;
+  const labels=['🥛 Laitage','🌾 Céréales','🍎 Fruit'];
+  const gap=14;
+  const innerX=box.x+16;
+  const innerY=box.y+16;
+  const innerW=box.w-32;
+  const colW=(innerW-gap*2)/3;
+  const photoH=520;
 
   for(let i=0;i<3;i++){
     const img=images[i];
-    const x=innerX, y=innerY+i*(rowH+gap);
-    const imageH=rowH-48;
+    const x=innerX+i*(colW+gap);
+    const y=innerY;
 
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(x,y,innerW,imageH,24);
+    ctx.roundRect(x,y,colW,photoH,24);
     ctx.clip();
 
     if(img){
-      const scale=Math.max(innerW/img.naturalWidth,imageH/img.naturalHeight);
-      const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
-      ctx.drawImage(img,x+(innerW-iw)/2,y+(imageH-ih)/2,iw,ih);
+      const scale=Math.max(colW/img.naturalWidth,photoH/img.naturalHeight);
+      const iw=img.naturalWidth*scale;
+      const ih=img.naturalHeight*scale;
+      ctx.drawImage(img,x+(colW-iw)/2,y+(photoH-ih)/2,iw,ih);
     }else{
       ctx.fillStyle='#fff';
-      ctx.fillRect(x,y,innerW,imageH);
+      ctx.fillRect(x,y,colW,photoH);
     }
     ctx.restore();
 
     ctx.fillStyle='#292326';
-    ctx.font='700 34px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-    ctx.fillText(labels[i],600,y+imageH+25);
+    ctx.font='900 32px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
+    ctx.fillText(labels[i],x+colW/2,y+photoH+48);
+
+    const name=String(items[i]?.name||'').trim();
+    if(name){
+      ctx.fillStyle='#7D7478';
+      ctx.font='600 23px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
+      ctx.fillText(name,x+colW/2,y+photoH+88);
+    }
   }
+
+  ctx.fillStyle='#E8A7B8';
+  ctx.beginPath();
+  ctx.roundRect(320,885,760,68,34);
+  ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.font='900 30px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
+  ctx.fillText('Petit déjeuner équilibré',700,919);
 
   return canvas.toDataURL('image/png');
 }
+
 async function createBreakfastDish(){
+  // Ordre fixe : laitage, céréales, fruit.
   const items=[
     pickBreakfastDishItem('laitage'),
-    pickBreakfastDishItem('fruit'),
-    pickBreakfastDishItem('céréales')
+    pickBreakfastDishItem('céréales'),
+    pickBreakfastDishItem('fruit')
   ];
 
   const missing=[];
   if(!items[0])missing.push('un laitage');
-  if(!items[1])missing.push('un fruit');
-  if(!items[2])missing.push('une céréale');
+  if(!items[1])missing.push('une céréale');
+  if(!items[2])missing.push('un fruit');
 
   const modal=document.getElementById('breakfastDishModal');
   const content=document.getElementById('breakfastDishContent');
