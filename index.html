@@ -102,7 +102,8 @@
 <div class="app">
 <header class="top">
   <div class="hero"></div>
-  <nav class="top-nav" aria-label="Navigation principale"><button class="active" data-view="recipes">📖 Recettes</button><button data-view="breakfast">🥐 Petit déjeuner</button><button data-view="stock">🧊 Stock</button><button data-view="agenda">📅 Agenda</button><button data-view="shopping">🛒 Courses</button></nav>
+  <nav class="top-nav" aria-label="Navigation principale"><button class="active" data-view="recipes">📖 Recettes</button><button data-view="breakfast">🥐 Petit déjeuner</button>
+<div id="breakfastCategories"></div><button data-view="stock">🧊 Stock</button><button data-view="agenda">📅 Agenda</button><button data-view="shopping">🛒 Courses</button></nav>
 </header>
 <main>
 <section id="recipes" class="view active">
@@ -308,6 +309,31 @@ function recipeTypes(r){
 function breakfastTypeBadges(r){
   const types=recipeTypes(r);
   return types.length?`<div class="recipe-type-badges">${types.map(t=>`<span class="recipe-type-badge">${BREAKFAST_TYPE_LABELS[t]}</span>`).join('')}</div>`:'';
+}
+
+function breakfastCategoryOf(r){
+  return r.breakfastCategory || r.petitDejeunerCategory || '';
+}
+function setBreakfastCategory(recipeId, category){
+  const bc=document.getElementById('breakfastCategories');
+  if(bc) bc.innerHTML=renderBreakfastCategories();
+  const selectedBreakfastCategory=window.activeBreakfastCategory||'Toutes';
+
+  const r=state.recipes.find(x=>String(x.id)===String(recipeId));
+  if(!r) return;
+  r.breakfastCategory = category || '';
+  saveState();
+  renderBreakfast();
+}
+function renderBreakfastCategories(){
+  const cats=['Toutes','À préparer','À dégainer'];
+  const current=window.activeBreakfastCategory||'Toutes';
+  return `<div class="recipe-chips breakfast-only-categories">${cats.map(c=>{
+    const count=c==='Toutes'
+      ? state.recipes.filter(r=>r.cat==='Petit-déjeuner').length
+      : state.recipes.filter(r=>r.cat==='Petit-déjeuner' && breakfastCategoryOf(r)===c).length;
+    return `<button class="chip ${current===c?'active':''}" onclick="window.activeBreakfastCategory='${c}';renderBreakfast()">${c} ${count}</button>`;
+  }).join('')}</div>`;
 }
 function updateBreakfastTypeField(){
   const wrap=document.getElementById('breakfastTypeField');
