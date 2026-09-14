@@ -181,6 +181,43 @@
 }
 </style>
 
+<style id="breakfast-dish-three-columns">
+/* Création du plat : 3 images toujours côte à côte et sur toute la largeur */
+#breakfastDishContent .breakfast-dish-preview{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:8px !important;
+  width:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+  box-sizing:border-box !important;
+}
+#breakfastDishContent .breakfast-dish-preview-card{
+  min-width:0 !important;
+  width:100% !important;
+  text-align:center;
+}
+#breakfastDishContent .breakfast-dish-preview-card img{
+  display:block !important;
+  width:100% !important;
+  aspect-ratio:1 / 1 !important;
+  height:auto !important;
+  object-fit:cover !important;
+  border-radius:14px !important;
+  background:#fff !important;
+}
+#breakfastDishContent .breakfast-dish-preview-label{
+  margin-top:6px !important;
+  font-size:13px !important;
+  font-weight:800 !important;
+  line-height:1.15 !important;
+}
+@media(max-width:560px){
+  #breakfastDishContent .breakfast-dish-preview{gap:6px !important;}
+  #breakfastDishContent .breakfast-dish-preview-label{font-size:11px !important;}
+}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -601,7 +638,7 @@ async function buildBreakfastDish(items){
 }
 
 async function createBreakfastDish(){
-  // Ordre fixe : laitage, céréales, fruit.
+  // Ordre fixe : laitage → céréales → fruit.
   const items=[
     pickBreakfastDishItem('laitage'),
     pickBreakfastDishItem('céréales'),
@@ -624,21 +661,47 @@ async function createBreakfastDish(){
     return;
   }
 
-  content.innerHTML='<div class="small" style="text-align:center;padding:24px">✨ Je compose ton plat…</div>';
+  // Affiche immédiatement les 3 photos côte à côte.
+  const labels=[
+    ['🥛','Laitage'],
+    ['🌾','Céréales'],
+    ['🍎','Fruit']
+  ];
 
-  try{
-    const image=await buildBreakfastDishImage(items);
-    content.innerHTML=`
-      <div class="breakfast-dish-fused">
-        <img class="breakfast-dish-fused-image" src="${image}" alt="Petit déjeuner composé avec les recettes choisies">
-      </div>
-      <div class="breakfast-dish-actions">
-        <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>
-        <button class="btn" onclick="createBreakfastDish()">Nouveau plat</button>
+  const cards=items.map((item,i)=>{
+    const src=breakfastDishPhotoData(item);
+    const name=esc(item?.name||labels[i][1]);
+    return `
+      <div class="breakfast-dish-preview-card">
+        ${src
+          ? `<img src="${src}" alt="${name}">`
+          : `<div style="width:100%;aspect-ratio:1/1;border-radius:14px;background:#fff;display:grid;place-items:center;font-size:42px;">📷</div>`}
+        <div class="breakfast-dish-preview-label">${labels[i][0]} ${labels[i][1]}</div>
+        <div style="font-size:10px;color:#7D7478;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
       </div>`;
+  }).join('');
+
+  content.innerHTML=`
+    <div style="width:100%;box-sizing:border-box;background:#FCEFF3;border-radius:20px;padding:10px;">
+      <div class="breakfast-dish-preview">${cards}</div>
+    </div>
+    <div style="width:80%;margin:16px auto 0;background:#E8A7B8;border-radius:999px;padding:10px;color:#fff;text-align:center;font-size:17px;font-weight:900;box-sizing:border-box;">
+      Petit déjeuner équilibré
+    </div>
+    <div class="breakfast-dish-actions" style="margin-top:14px">
+      <button class="btn" onclick="createBreakfastDish()">Nouveau plat</button>
+    </div>`;
+
+  // La sauvegarde PNG est secondaire : si elle échoue, les 3 photos restent visibles.
+  try{
+    const image=await buildBreakfastDish(items);
+    const actions=content.querySelector('.breakfast-dish-actions');
+    if(actions){
+      actions.insertAdjacentHTML('afterbegin',
+        `<a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>`);
+    }
   }catch(e){
     console.error(e);
-    content.innerHTML='<div class="empty">Impossible de créer l’image de ce plat.</div>';
   }
 }
 
