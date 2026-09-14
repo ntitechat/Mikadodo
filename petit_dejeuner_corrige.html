@@ -141,7 +141,7 @@
  <div class="section-head">
   <h2>🥐 Petit déjeuner</h2>
   <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-    <button class="btn purple" onclick="createBreakfastDish()">🍽️ Créer un plat</button>
+    <button class="btn purple" onclick="createBreakfastDish()">🍽️ Créer un petit déj</button>
     <button class="btn" onclick="openBreakfastRecipeModal()">＋ Ajouter</button>
   </div>
 </div>
@@ -503,7 +503,7 @@ async function buildBreakfastDishImage(items){
   canvas.height=1000;
   const ctx=canvas.getContext('2d');
 
-  // Composition utilisée uniquement pour « Créer un plat » :
+  // Composition utilisée uniquement pour « Créer un petit déj » :
   // titre en haut + trois grandes photos côte à côte + catégorie sous chaque photo.
   ctx.fillStyle='#FFFBFC';
   ctx.fillRect(0,0,canvas.width,canvas.height);
