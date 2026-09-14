@@ -101,7 +101,9 @@
 .breakfast-dish-result{
   background:#FFFBFC;
   border-radius:28px;
-  padding:22px;
+  padding:22px 14px 18px;
+  width:100%;
+  box-sizing:border-box;
 }
 .breakfast-dish-title{
   margin:4px 0 24px;
@@ -173,13 +175,19 @@
   flex-wrap:wrap;
   margin-top:12px;
 }
-@media(max-width:700px){
-  .breakfast-dish-grid{
-    grid-template-columns:1fr;
-  }
-  .breakfast-dish-photo{
-    aspect-ratio:1.25;
-  }
+/* Important : les 3 éléments restent côte à côte, y compris sur mobile,
+   pour reproduire exactement la composition de l'image de référence. */
+.breakfast-dish-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.breakfast-dish-photo{
+  aspect-ratio:0.72;
+}
+.breakfast-dish-label{
+  font-size:clamp(14px,2.5vw,24px);
+}
+.breakfast-dish-name{
+  font-size:clamp(11px,1.8vw,15px);
 }
 </style>
 
