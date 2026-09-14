@@ -149,7 +149,7 @@
  <div class="section-head">
   <h2>🥐 Petit déjeuner</h2>
   <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-    <button class="btn purple" onclick="createBreakfastDish()">🍽️ Créer un plat</button>
+    
     <button class="btn" onclick="openBreakfastRecipeModal()">＋ Ajouter</button>
   </div>
 </div>
@@ -540,7 +540,7 @@ async function createBreakfastDish(){
     if(actions){
       actions.innerHTML=`
         <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>
-        <button class="btn" onclick="createBreakfastDish()">Nouveau plat</button>`;
+        `;
     }
   }catch(e){
     console.error(e);
@@ -1145,3 +1145,8 @@ checkNotifications();
 scheduleNotificationCheck();
 </script>
 </body></html>
+
+<style id="hide-create-breakfast-dish-button">
+  /* Petit-déjeuner : bouton « Créer un plat » masqué */
+  button[onclick*="createBreakfastDish"] { display:none !important; }
+</style>
