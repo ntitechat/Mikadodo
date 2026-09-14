@@ -197,7 +197,7 @@ let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
 };
 state.recipeCategories=state.recipeCategories||['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','Entrée','Boisson','Goûter','Apéritif'];
 if(!state.recipeCategories.includes('À congeler'))state.recipeCategories.push('À congeler');
-const BREAKFAST_SUBCATEGORIES=['À préparer','À dégainer','À congeler'];
+const BREAKFAST_SUBCATEGORIES=['À préparer','À dégainer'];
 let activeBreakfastCategory='Toutes';
 const preferredRecipeCategoryOrder=['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];
 state.recipeCategories=[...preferredRecipeCategoryOrder.filter(c=>state.recipeCategories.includes(c)),...state.recipeCategories.filter(c=>!preferredRecipeCategoryOrder.includes(c))];
