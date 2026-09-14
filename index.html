@@ -101,36 +101,33 @@
 .breakfast-dish-image-wrap{
   background:#fff;
   border:1px solid var(--line);
-  border-radius:18px;
-  padding:10px;
+  border-radius:22px;
+  padding:8px;
   margin:8px 0 14px;
 }
 .breakfast-dish-image{
   display:block;
   width:100%;
-  max-height:520px;
+  max-height:78vh;
   object-fit:contain;
-  border-radius:13px;
-  background:var(--green2);
-}
-.breakfast-dish-items{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  margin:10px 0;
-}
-.breakfast-dish-item{
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:9px;
+  border-radius:17px;
   background:#fff;
-  text-align:center;
 }
-.breakfast-dish-item .emoji{font-size:30px}
-.breakfast-dish-item strong{display:block;margin-top:4px;font-size:13px}
-.breakfast-dish-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.breakfast-dish-actions{
+  display:flex;
+  gap:8px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+.breakfast-dish-title{
+  text-align:center;
+  font-size:30px;
+  font-weight:900;
+  margin:4px 0 14px;
+  color:var(--text);
+}
 @media(max-width:560px){
-  .breakfast-dish-items{grid-template-columns:1fr}
+  .breakfast-dish-title{font-size:25px}
 }
 </style>
 
@@ -475,75 +472,63 @@ function loadBreakfastDishImage(src){
 async function buildBreakfastDishImage(items){
   const canvas=document.createElement('canvas');
   canvas.width=1200;
-  canvas.height=900;
+  canvas.height=1000;
   const ctx=canvas.getContext('2d');
 
+  // Fond propre et titre demandé.
   ctx.fillStyle='#FFFBFC';
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // Titre
   ctx.fillStyle='#292326';
   ctx.textAlign='center';
-  ctx.font='800 48px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-  ctx.fillText('Mon plat petit déjeuner',600,72);
+  ctx.textBaseline='middle';
+  ctx.font='900 58px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
+  ctx.fillText('Ton petit déjeuner de ce matin',600,78);
 
-  const positions=[
-    {x:70,y:125,w:340,h:580},
-    {x:430,y:125,w:340,h:580},
-    {x:790,y:125,w:340,h:580}
-  ];
+  // Une seule grande zone qui fusionne visuellement les 3 aliments.
+  const box={x:55,y:145,w:1090,h:700};
+  ctx.fillStyle='#FCEFF3';
+  ctx.beginPath();
+  ctx.roundRect(box.x,box.y,box.w,box.h,36);
+  ctx.fill();
 
-  for(let i=0;i<items.length;i++){
-    const item=items[i], p=positions[i];
-    ctx.fillStyle='#FCEFF3';
-    ctx.beginPath();
-    ctx.roundRect(p.x,p.y,p.w,p.h,28);
-    ctx.fill();
-
-    const img=await loadBreakfastDishImage(breakfastDishPhotoData(item));
-    if(img){
-      const pad=22, box={x:p.x+pad,y:p.y+pad,w:p.w-pad*2,h:390};
-      const scale=Math.min(box.w/img.naturalWidth,box.h/img.naturalHeight);
-      const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(box.x,box.y,box.w,box.h,20);
-      ctx.clip();
-      ctx.drawImage(img,box.x+(box.w-iw)/2,box.y+(box.h-ih)/2,iw,ih);
-      ctx.restore();
-    }else{
-      const emoji=item?.types?.includes('laitage')?'🥛':item?.types?.includes('fruit')?'🍎':'🌾';
-      ctx.font='120px serif';
-      ctx.textAlign='center';
-      ctx.textBaseline='middle';
-      ctx.fillText(emoji,p.x+p.w/2,p.y+215);
-    }
-
-    ctx.fillStyle='#D889A1';
-    ctx.font='800 24px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-    ctx.textAlign='center';
-    ctx.fillText(BREAKFAST_TYPE_LABELS[recipeTypes(item)[0]]||'Ingrédient',p.x+p.w/2,p.y+445);
-
-    ctx.fillStyle='#292326';
-    breakfastDishEscapeText(
-      ctx,item?.name||'',
-      p.x+p.w/2,p.y+500,p.w-40,
-      '800 27px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif'
-    );
+  const images=[];
+  for(const item of items){
+    images.push(await loadBreakfastDishImage(breakfastDishPhotoData(item)));
   }
 
-  ctx.fillStyle='#7D7478';
-  ctx.font='600 22px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-  ctx.textAlign='center';
-  ctx.fillText('🥛 Laitage  +  🍎 Fruit  +  🌾 Céréales',600,770);
+  // Les trois photos sont assemblées dans une seule image, sans emojis ni libellés.
+  const gap=14;
+  const innerX=box.x+22, innerY=box.y+22, innerW=box.w-44, innerH=box.h-44;
+  const cellW=(innerW-gap*2)/3;
 
+  for(let i=0;i<3;i++){
+    const img=images[i];
+    const x=innerX+i*(cellW+gap), y=innerY;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x,y,cellW,innerH,24);
+    ctx.clip();
+
+    if(img){
+      const scale=Math.max(cellW/img.naturalWidth,innerH/img.naturalHeight);
+      const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
+      ctx.drawImage(img,x+(cellW-iw)/2,y+(innerH-ih)/2,iw,ih);
+    }else{
+      ctx.fillStyle='#fff';
+      ctx.fillRect(x,y,cellW,innerH);
+    }
+    ctx.restore();
+  }
+
+  // Petit rappel visuel en bas, sans emojis.
   ctx.fillStyle='#E8A7B8';
   ctx.beginPath();
-  ctx.roundRect(190,805,820,56,28);
+  ctx.roundRect(250,890,700,60,30);
   ctx.fill();
   ctx.fillStyle='#fff';
-  ctx.font='800 25px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
-  ctx.fillText('Petit déjeuner équilibré',600,833);
+  ctx.font='800 27px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
+  ctx.fillText('Petit déjeuner équilibré',600,920);
 
   return canvas.toDataURL('image/png');
 }
@@ -576,20 +561,13 @@ async function createBreakfastDish(){
   try{
     const image=await buildBreakfastDishImage(items);
     content.innerHTML=`
+      <div class="breakfast-dish-title">Ton petit déjeuner de ce matin</div>
       <div class="breakfast-dish-image-wrap">
-        <img id="generatedBreakfastDish" class="breakfast-dish-image" src="${image}" alt="Plat petit déjeuner composé">
-      </div>
-      <div class="breakfast-dish-items">
-        ${items.map((r,i)=>`
-          <div class="breakfast-dish-item">
-            <div class="emoji">${i===0?'🥛':i===1?'🍎':'🌾'}</div>
-            <strong>${esc(r.name)}</strong>
-          </div>
-        `).join('')}
+        <img id="generatedBreakfastDish" class="breakfast-dish-image" src="${image}" alt="Ton petit déjeuner de ce matin">
       </div>
       <div class="breakfast-dish-actions">
-        <button class="btn" onclick="createBreakfastDish()">🔄 Nouveau plat</button>
-        <a class="btn ghost" href="${image}" download="petit-dejeuner.png">🖼️ Enregistrer l’image</a>
+        <button class="btn" onclick="createBreakfastDish()">Nouveau plat</button>
+        <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>
       </div>`;
   }catch(e){
     console.error(e);
