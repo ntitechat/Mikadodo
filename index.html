@@ -358,9 +358,12 @@ function renderBreakfastCategories(){
   const el=document.getElementById('breakfastCategories');
   if(!el)return;
   const breakfasts=state.recipes.filter(r=>r.cat==='Petit-déjeuner');
-  el.innerHTML=['Toutes',...BREAKFAST_SUBCATEGORIES].map(c=>{
-    const count=c==='Toutes'?breakfasts.length:breakfasts.filter(r=>r.breakfastCategory===c).length;
-    return `<button class="chip breakfast-category-chip ${activeBreakfastCategory===c?'active':''}" onclick="setBreakfastCategory('${encodeURIComponent(c)}')">${esc(c)} ${count}</button>`;
+  // Les sous-catégories « À préparer » et « À dégainer » restent enregistrées
+  // pour les recettes, mais ne sont pas affichées dans la vue des recettes.
+  const categories=['Toutes'];
+  el.innerHTML=categories.map(c=>{
+    const count=breakfasts.length;
+    return `<button class="chip breakfast-category-chip ${activeBreakfastCategory==='Toutes'?'active':''}" onclick="setBreakfastCategory('${encodeURIComponent(c)}')">${esc(c)} ${count}</button>`;
   }).join('');
 }
 function renderBreakfastRecipes(){
@@ -373,7 +376,7 @@ function renderBreakfastRecipes(){
       && (activeBreakfastCategory==='Toutes'||r.breakfastCategory===activeBreakfastCategory)
       && (!q||String(r.name||'').toLowerCase().includes(q)))
     .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'}));
-  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div>${breakfastTypeBadges(r)}<div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
+  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">Petit-déjeuner</div>${breakfastTypeBadges(r)}<div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
 }
 
 function renderRecipes(){
