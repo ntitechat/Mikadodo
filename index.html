@@ -775,6 +775,10 @@ function renderRecipes(){
         const xm=x._availability, ym=y._availability;
         if(ym.have!==xm.have)return ym.have-xm.have;
         if(xm.missing!==ym.missing)return xm.missing-ym.missing;
+        // En mode « Recettes faisables », les desserts passent en dernier :
+        // ils restent disponibles, mais ne sont pas prioritaires.
+        const xd=x.cat==='Dessert', yd=y.cat==='Dessert';
+        if(xd!==yd)return xd?1:-1;
         return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
       });
   }else{
