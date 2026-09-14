@@ -384,15 +384,9 @@ window.addEventListener('popstate',event=>{
   // À la racine de Mikadodo, le bouton Android Retour ne ferme pas l'application au premier appui.
   if(navigationReady){history.pushState({mikadodo:true,view:currentView},'',`#${currentView}`);return}
 });
-// Conserve la page actuellement affichée après un rafraîchissement.
-// Le hash (#recipes, #breakfast, #stock, #agenda, #shopping, #notes) fait office
-// d'URL interne de navigation et permet au navigateur de restaurer la bonne vue.
-const validViews=['recipes','breakfast','stock','agenda','shopping','notes'];
-const initialHash=decodeURIComponent(location.hash||'').replace(/^#/,'');
-const initialView=validViews.includes(initialHash)?initialHash:'recipes';
-history.replaceState({mikadodo:true,view:initialView},'',location.href.split('#')[0]+'#'+initialView);
+history.replaceState({mikadodo:true,view:'recipes'},'',location.href.split('#')[0]+'#recipes');
+history.pushState({mikadodo:true,view:'recipes'},'',`#recipes`);
 navigationReady=true;
-applyView(initialView);
 function renderAll(){syncStockExpiryAgenda();renderRecipes();renderBreakfastRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all',shoppingSearch='',shoppingIngredientFilter='all',shoppingRecipeFilterIds=[];
 let cookableRecipesOnly=false;
