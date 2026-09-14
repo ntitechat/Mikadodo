@@ -58,8 +58,8 @@
   background:#fde3eb;
   color:#9b4963;
   border-radius:14px;
-  padding:5px 7px;
-  font-size:11px;
+  padding:6px 9px;
+  font-size:12px;
   font-weight:700;
   cursor:pointer;
   white-space:nowrap;
@@ -106,14 +106,9 @@
 </header>
 <main>
 <section id="recipes" class="view active">
- <div class="section-head"><h2>Mes recettes</h2><div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;min-width:0"><button class="cookable-recipes-btn" onclick="switchView('breakfast')">🥐 Petit déjeuner</button><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div></div>
+ <div class="section-head"><h2>Mes recettes</h2><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div>
  <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" oninput="renderRecipes()"/>
  <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
-</section>
-<section id="breakfast" class="view">
- <div class="section-head"><h2>🥐 Petit déjeuner</h2><button class="cookable-recipes-btn" onclick="switchView('recipes')">← Retour aux recettes</button></div>
- <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/>
- <div id="breakfastGrid" class="grid"></div>
 </section>
 <section id="stock" class="view">
  <div class="section-head"><h2>Mon stock</h2><button class="btn" onclick="openStockModal()">＋ Ajouter</button></div>
@@ -188,7 +183,7 @@ window.addEventListener('popstate',event=>{
 history.replaceState({mikadodo:true,view:'recipes'},'',location.href.split('#')[0]+'#recipes');
 history.pushState({mikadodo:true,view:'recipes'},'',`#recipes`);
 navigationReady=true;
-function renderAll(){syncStockExpiryAgenda();renderRecipes();renderBreakfastRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
+function renderAll(){syncStockExpiryAgenda();renderRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all',shoppingSearch='',shoppingIngredientFilter='all',shoppingRecipeFilterIds=[];
 let cookableRecipesOnly=false;
 function formatDuration(minutes){minutes=Number(minutes)||0;if(minutes<=0)return '';if(minutes<60)return `${minutes}min`;let h=Math.floor(minutes/60),m=minutes%60;return m?`${h}h${String(m).padStart(2,'0')}`:`${h}h`}
@@ -298,16 +293,6 @@ function updateCookableRecipesButton(){
   if(!btn)return;
   btn.classList.toggle('active',cookableRecipesOnly);
   btn.textContent=cookableRecipesOnly?'🍳 Toutes les recettes':'🍳 Recettes faisables';
-}
-
-function renderBreakfastRecipes(){
-  const grid=document.getElementById('breakfastGrid');
-  if(!grid)return;
-  const q=(document.getElementById('breakfastSearch')?.value||'').toLowerCase().trim();
-  const a=state.recipes
-    .filter(r=>r.cat==='Petit-déjeuner' && (!q||String(r.name||'').toLowerCase().includes(q)))
-    .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'}));
-  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">Petit-déjeuner</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette de petit déjeuner pour le moment.</div>';
 }
 
 function renderRecipes(){
