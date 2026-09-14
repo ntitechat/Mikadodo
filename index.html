@@ -317,6 +317,8 @@ function breakfastCategoryOf(r){
 function setBreakfastCategory(recipeId, category){
   const bc=document.getElementById('breakfastCategories');
   if(bc) bc.innerHTML=renderBreakfastCategories();
+  if(bc) bc.insertAdjacentHTML('beforeend', '<div class="breakfast-add-wrap"><button class="primary" onclick="addRecipeToStock()">＋ Ajouter</button></div>');
+
   const selectedBreakfastCategory=window.activeBreakfastCategory||'Toutes';
 
   const r=state.recipes.find(x=>String(x.id)===String(recipeId));
