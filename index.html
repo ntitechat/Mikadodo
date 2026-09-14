@@ -513,10 +513,45 @@ function breakfastDishCandidates(type){
   );
 }
 
-function pickBreakfastDishItem(type){
-  const candidates=breakfastDishCandidates(type);
+function pickBreakfastDishItem(type, excludedIds=[]){
+  const candidates=breakfastDishCandidates(type)
+    .filter(r=>!excludedIds.includes(r.id));
   if(!candidates.length)return null;
   return candidates[Math.floor(Math.random()*candidates.length)];
+}
+
+function pickUniqueBreakfastDishItems(){
+  // On cherche une combinaison de 3 recettes différentes.
+  // Une même recette peut avoir plusieurs types (ex. un porridge = fruit + laitage + céréales),
+  // mais elle ne doit apparaître qu'une seule fois dans le plat.
+  const types=['laitage','céréales','fruit'];
+  const pools=types.map(type=>breakfastDishCandidates(type));
+
+  if(pools.some(pool=>!pool.length)){
+    return types.map(type=>pickBreakfastDishItem(type));
+  }
+
+  // Mélange l'ordre de recherche pour garder un peu d'aléatoire.
+  pools.forEach(pool=>{
+    for(let i=pool.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [pool[i],pool[j]]=[pool[j],pool[i]];
+    }
+  });
+
+  // Backtracking : trouve une combinaison sans recette répétée,
+  // même lorsqu'une recette possède plusieurs types.
+  function search(index, chosen){
+    if(index===types.length)return chosen;
+    for(const recipe of pools[index]){
+      if(chosen.some(r=>r.id===recipe.id))continue;
+      const result=search(index+1,[...chosen,recipe]);
+      if(result)return result;
+    }
+    return null;
+  }
+
+  return search(0,[]) || types.map(type=>pickBreakfastDishItem(type));
 }
 
 async function breakfastDishPhotoData(recipe){
@@ -640,11 +675,7 @@ async function buildBreakfastDish(items){
 
 async function createBreakfastDish(){
   // Ordre fixe : laitage → céréales → fruit.
-  const items=[
-    pickBreakfastDishItem('laitage'),
-    pickBreakfastDishItem('céréales'),
-    pickBreakfastDishItem('fruit')
-  ];
+  const items=pickUniqueBreakfastDishItems();
 
   const missing=[];
   if(!items[0])missing.push('un laitage');
