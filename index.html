@@ -276,6 +276,7 @@
   </div>
 </div>
 <div id="photoZoom" class="photo-zoom" onclick="if(event.target===this)closePhotoZoom()"><button onclick="closePhotoZoom()">×</button><img id="photoZoomImg" alt="Photo agrandie"></div><div id="modalBack" class="modal-back" onclick="if(event.target===this)closeModal()"><div id="modal" class="modal"></div></div><div id="timerBar" class="timer-bar"><span>🔥 Cuisson</span><span id="timerTime" class="timer-time">00:00</span><button class="btn ghost mini" onclick="stopCookingTimer()">Arrêter</button></div><div id="timerAlarm" class="modal-back" style="z-index:90"><div class="modal" style="text-align:center"><h2>⏰ Minuteur terminé</h2><p id="timerAlarmText" class="small"></p><div class="actions" style="justify-content:center"><button class="btn ghost" onclick="stopCookingTimer()">⏹️ Éteindre</button><button class="btn" onclick="restartCookingTimer()">🔄 Relancer</button></div></div></div><div id="toast" class="toast"></div>
+<script src="mikadodo-photos-recovery.js"></script>
 <script>
 const KEY='maCuisineV1';
 let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
@@ -367,7 +368,16 @@ async function getPhoto(ref){
 }
 function photoSrc(ref){return ref&&photoCache[ref]?photoCache[ref]:''}
 async function migratePhotoField(obj,field){let v=obj?.[field];if(typeof v==='string'&&v.startsWith('data:image/')){obj[field]=await putPhoto(v)}else if(Array.isArray(v)){obj[field]=[];for(const item of v)obj[field].push(typeof item==='string'&&item.startsWith('data:image/')?await putPhoto(item):item)}}
-async function initPhotoStorage(){try{await photoDB();for(const r of state.recipes){await migratePhotoField(r,'photos');if(typeof r.photo==='string'&&r.photo.startsWith('data:image/'))r.photo=await putPhoto(r.photo);if(!r.photos?.length&&r.photo)r.photos=[r.photo];if(r.photos?.length)r.photo=r.photos[0]}for(const x of state.stock)await migratePhotoField(x,'photo');for(const x of state.agenda)await migratePhotoField(x,'photo');save();for(const r of state.recipes)for(const ref of (r.photos||[]))await getPhoto(ref);for(const x of state.stock)if(x.photo)await getPhoto(x.photo);for(const x of state.agenda)if(x.photo)await getPhoto(x.photo)}catch(e){console.warn('Stockage photos indisponible',e)}}
+async function initPhotoStorage(){try{await photoDB();
+if(window.MIKADODO_RECOVERY_PHOTOS){
+  for(const [ref,data] of Object.entries(window.MIKADODO_RECOVERY_PHOTOS)){
+    if(String(ref).startsWith('idb:')&&typeof data==='string'&&!photoCache[ref]){
+      const key=String(ref).slice(4);
+      const existing=await new Promise(res=>{const req=photoDB().then(db=>new Promise((r,j)=>{const tx=db.transaction('photos','readonly');const q=tx.objectStore('photos').get(key);q.onsuccess=()=>r(q.result||null);q.onerror=()=>r(null)}));req.then(res).catch(()=>res(null))});
+      if(!existing) await putPhoto(data,key); else photoCache[ref]=existing;
+    }
+  }
+}for(const r of state.recipes){await migratePhotoField(r,'photos');if(typeof r.photo==='string'&&r.photo.startsWith('data:image/'))r.photo=await putPhoto(r.photo);if(!r.photos?.length&&r.photo)r.photos=[r.photo];if(r.photos?.length)r.photo=r.photos[0]}for(const x of state.stock)await migratePhotoField(x,'photo');for(const x of state.agenda)await migratePhotoField(x,'photo');save();for(const r of state.recipes)for(const ref of (r.photos||[]))await getPhoto(ref);for(const x of state.stock)if(x.photo)await getPhoto(x.photo);for(const x of state.agenda)if(x.photo)await getPhoto(x.photo)}catch(e){console.warn('Stockage photos indisponible',e)}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function recipeMoney(n){let v=Number(n)||0;return (Number.isInteger(v)?String(v):v.toFixed(2).replace(/0+$/,'').replace(/\.$/, '').replace('.',','))+'€'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 let currentView='recipes';
 let navigationReady=false;
