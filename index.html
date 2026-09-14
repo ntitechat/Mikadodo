@@ -312,29 +312,22 @@ function breakfastTypeBadges(r){
 }
 
 function breakfastCategoryOf(r){
-  return r.breakfastCategory || r.petitDejeunerCategory || '';
+  return r.breakfastCategory || '';
 }
 function setBreakfastCategory(recipeId, category){
-  const bc=document.getElementById('breakfastCategories');
-  if(bc) bc.innerHTML=renderBreakfastCategories();
-  if(bc) bc.insertAdjacentHTML('beforeend', '<div class="breakfast-add-wrap"><button class="primary" onclick="addRecipeToStock()">＋ Ajouter</button></div>');
-
-  const selectedBreakfastCategory=window.activeBreakfastCategory||'Toutes';
-
   const r=state.recipes.find(x=>String(x.id)===String(recipeId));
   if(!r) return;
   r.breakfastCategory = category || '';
   saveState();
-  renderBreakfast();
+  renderBreakfastRecipes();
 }
 function renderBreakfastCategories(){
   const cats=['Toutes','À préparer','À dégainer'];
   const current=window.activeBreakfastCategory||'Toutes';
   return `<div class="recipe-chips breakfast-only-categories">${cats.map(c=>{
-    const count=c==='Toutes'
-      ? state.recipes.filter(r=>r.cat==='Petit-déjeuner').length
-      : state.recipes.filter(r=>r.cat==='Petit-déjeuner' && breakfastCategoryOf(r)===c).length;
-    return `<button class="chip ${current===c?'active':''}" onclick="window.activeBreakfastCategory='${c}';renderBreakfast()">${c} ${count}</button>`;
+    const count=state.recipes.filter(r=>r.cat==='Petit-déjeuner' &&
+      (c==='Toutes'||breakfastCategoryOf(r)===c)).length;
+    return `<button class="chip ${current===c?'active':''}" onclick="window.activeBreakfastCategory='${c}';renderBreakfastRecipes()">${esc(c)} ${count}</button>`;
   }).join('')}</div>`;
 }
 function updateBreakfastTypeField(){
@@ -361,13 +354,25 @@ function collectBreakfastTypes(){
 }
 
 function renderBreakfastRecipes(){
+  const breakfastCategoryHost=document.getElementById('breakfastCategories');
+  if(breakfastCategoryHost) breakfastCategoryHost.innerHTML=renderBreakfastCategories();
+  const selectedBreakfastCategory=window.activeBreakfastCategory||'Toutes';
+
   const grid=document.getElementById('breakfastGrid');
   if(!grid)return;
   const q=(document.getElementById('breakfastSearch')?.value||'').toLowerCase().trim();
   const a=state.recipes
     .filter(r=>r.cat==='Petit-déjeuner' && (!q||String(r.name||'').toLowerCase().includes(q)))
     .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'}));
-  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">Petit-déjeuner</div>${breakfastTypeBadges(r)}<div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette de petit déjeuner pour le moment.</div>';
+  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><div class="breakfast-category-picker">
+      <label>Catégorie
+        <select onchange="setBreakfastCategory(${r.id}, this.value)">
+          <option value="" ${breakfastCategoryOf(r)===''?'selected':''}>Sans catégorie</option>
+          <option value="À préparer" ${breakfastCategoryOf(r)==='À préparer'?'selected':''}>À préparer</option>
+          <option value="À dégainer" ${breakfastCategoryOf(r)==='À dégainer'?'selected':''}>À dégainer</option>
+        </select>
+      </label>
+    </div><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">Petit-déjeuner</div>${breakfastTypeBadges(r)}<div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette de petit déjeuner pour le moment.</div>';
 }
 
 function renderRecipes(){
