@@ -344,12 +344,15 @@ function renderBreakfastRecipes(){
 
 function renderRecipes(){
   let q=(document.getElementById('recipeSearch')?.value||'').toLowerCase();
-  document.getElementById('recipeChips').innerHTML=cats().map(c=>{
-    let count=c==='Toutes'?state.recipes.length:state.recipes.filter(r=>r.cat===c).length;
+  const regularRecipes=state.recipes.filter(r=>r.cat!=='Petit-déjeuner');
+  const regularCategories=state.recipeCategories.filter(c=>c!=='Petit-déjeuner');
+  document.getElementById('recipeChips').innerHTML=['Toutes',...regularCategories].map(c=>{
+    let count=c==='Toutes'?regularRecipes.length:regularRecipes.filter(r=>r.cat===c).length;
     return `<button class="chip ${activeCat===c?'active':''}" onclick="setRecipeCategory('${encodeURIComponent(c)}')">${esc(c)} ${count}</button>`;
   }).join('');
 
-  let a=state.recipes.filter(r=>
+  // Les recettes Petit-déjeuner sont affichées uniquement dans leur vue dédiée.
+  let a=regularRecipes.filter(r=>
     (activeCat==='Toutes'||r.cat===activeCat)&&
     (!q||r.name.toLowerCase().includes(q))
   );
@@ -368,7 +371,7 @@ function renderRecipes(){
   }else{
     a=a.sort((x,y)=>{
       if(activeCat!=='Toutes')return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
-      let cx=state.recipeCategories.indexOf(x.cat),cy=state.recipeCategories.indexOf(y.cat);
+      let cx=regularCategories.indexOf(x.cat),cy=regularCategories.indexOf(y.cat);
       if(cx!==cy)return (cx<0?999:cx)-(cy<0?999:cy);
       return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
     });
