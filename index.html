@@ -930,11 +930,16 @@ function renderRecipes(){
     (!q||r.name.toLowerCase().includes(q))
   );
 
-  // En mode « Recettes faisables », afficher toutes les recettes sans
-  // filtrer selon le nombre d'ingrédients manquants, ni la recherche
-  // ou la catégorie sélectionnée. La disponibilité reste affichée sur chaque fiche.
+  // En mode « Recettes faisables », afficher toutes les recettes de la
+  // section Recettes, sans aucune limite sur le nombre d'ingrédients
+  // manquants. Les catégories restent actives : si l'utilisateur choisit
+  // « Plat », seules les recettes de la catégorie « Plat » sont affichées.
+  // La disponibilité et les ingrédients manquants restent affichés sur chaque fiche.
   if(cookableRecipesOnly){
-    a=[...state.recipes];
+    a=regularRecipes.filter(r=>
+      (activeCat==='Toutes'||r.cat===activeCat)&&
+      (!q||String(r.name||'').toLowerCase().includes(q))
+    );
     a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
       .sort((x,y)=>{
         const xm=x._availability, ym=y._availability;
