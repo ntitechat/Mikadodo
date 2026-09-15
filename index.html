@@ -325,6 +325,43 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
   window.__sortCourseCategories=__sortCourseCategories;
 })();
 </script>
+
+<style id="petit-dejeuner-plus-compact">
+#breakfastGrid .recipe-card {
+  min-height: 0;
+  padding: 6px 0;
+  gap: 10px;
+}
+#breakfastGrid .recipe-card .card-body {
+  padding: 3px 0;
+}
+#breakfastGrid .recipe-card h3 {
+  margin: 0 0 3px;
+}
+#breakfastGrid .recipe-card .meta {
+  margin: 1px 0;
+}
+#breakfastGrid .recipe-card .small {
+  line-height: 1.15;
+}
+#breakfastGrid .recipe-card .recipe-photo {
+  flex-basis: 116px;
+  width: 116px;
+  height: 86px;
+}
+@media(max-width:600px) {
+  #breakfastGrid .recipe-card {
+    padding: 6px 0;
+    gap: 9px;
+  }
+  #breakfastGrid .recipe-card .recipe-photo {
+    flex-basis: 112px;
+    width: 112px;
+    height: 84px;
+  }
+}
+</style>
+
 </head>
 <body>
 <div class="app">
