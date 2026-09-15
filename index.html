@@ -164,6 +164,45 @@
 }
 </style>
 
+<style id="breakfast-recipe-compact-layout">
+.breakfast-recipes .recipe-card .card-body,
+.breakfast-recipes-grid .recipe-card .card-body,
+.recipe-grid.breakfast .recipe-card .card-body,
+.recipes-grid.breakfast .recipe-card .card-body {
+  padding: 12px 14px;
+}
+.breakfast-recipes .recipe-card h3,
+.breakfast-recipes-grid .recipe-card h3,
+.recipe-grid.breakfast .recipe-card h3,
+.recipes-grid.breakfast .recipe-card h3 {
+  margin: 0 0 5px;
+}
+.recipe-type-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 2px;
+  color: #111;
+  font-size: 13px;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+.recipe-type-badge {
+  color: #111;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-weight: 600;
+}
+.breakfast-recipes .recipe-card .meta,
+.breakfast-recipes-grid .recipe-card .meta,
+.recipe-grid.breakfast .recipe-card .meta,
+.recipes-grid.breakfast .recipe-card .meta {
+  margin: 2px 0;
+}
+</style>
+
 <style id="breakfast-dish-visible-images">
 .breakfast-dish-fused{
   width:100%;
@@ -579,7 +618,7 @@ function updateCookableRecipesButton(){
 }
 
 const BREAKFAST_TYPES=['laitage','céréales','fruit'];
-const BREAKFAST_TYPE_LABELS={laitage:'🥛 Laitage',céréales:'🌾 Féculents',fruit:'🍎 Fruit'};
+const BREAKFAST_TYPE_LABELS={laitage:'Laitage',céréales:'Féculent',fruit:'Fruit'};
 function recipeTypes(r){
   return Array.isArray(r?.types)?r.types.filter(t=>BREAKFAST_TYPES.includes(t)):[];
 }
@@ -912,7 +951,7 @@ function renderBreakfastRecipes(){
       && (activeBreakfastCategory==='Toutes'||r.breakfastCategory===activeBreakfastCategory)
       && (!q||String(r.name||'').toLowerCase().includes(q)))
     .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'}));
-  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3>${breakfastTypeBadges(r)}${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
+  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${durationMeta(r)?`<span class="meta" style="margin:0">${durationMeta(r)}</span>`:''}${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
 }
 
 function renderRecipes(){
