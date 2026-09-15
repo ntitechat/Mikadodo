@@ -393,18 +393,18 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
 </header>
 <main>
 <section id="recipes" class="view active">
- <div class="section-head"><h2>Mes recettes</h2><div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;min-width:0"><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div></div>
- <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" oninput="renderRecipes()"/>
+ <div class="section-head"><h2>Mes recettes</h2><div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;min-width:0"><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes réalisables</button></div></div>
+ <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" onfocus="activeCat='Toutes';renderRecipes()" oninput="renderRecipes()"/>
  <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
 </section>
 <section id="breakfast" class="view">
  <div class="section-head">
   <h2>🥐 Petit déjeuner</h2>
   <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-    <button id="breakfastCookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleBreakfastCookableRecipes()">🍳 Recettes faisables</button><button class="btn purple" onclick="createBreakfastDish()">🍽️ Créer un petit déj</button>
+    <button id="breakfastCookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleBreakfastCookableRecipes()">🍳 Recettes réalisables</button><button class="btn purple" onclick="createBreakfastDish()">🍽️ Créer un petit déj</button>
   </div>
 </div>
- <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/>
+ <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" onfocus="activeBreakfastCategory='Toutes';renderBreakfastRecipes()" oninput="renderBreakfastRecipes()"/>
  <div id="breakfastCategories" class="chips"></div>
  <div id="breakfastGrid" class="grid"></div>
 </section>
@@ -741,7 +741,7 @@ function updateCookableRecipesButton(){
   const btn=document.getElementById('cookableRecipesBtn');
   if(!btn)return;
   btn.classList.toggle('active',cookableRecipesOnly);
-  btn.textContent=cookableRecipesOnly?'🍳 Toutes les recettes':'🍳 Recettes faisables';
+  btn.textContent=cookableRecipesOnly?'🍳 Toutes les recettes':'🍳 Recettes réalisables';
 }
 
 const BREAKFAST_TYPES=['laitage','céréales','fruit'];
@@ -1082,12 +1082,8 @@ function renderBreakfastRecipes(){
   if(breakfastCookableOnly){
     a=a.filter(r=>!r.hideFromCookable)
       .map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
-      .sort((x,y)=>{
-        const xm=x._availability, ym=y._availability;
-        if(ym.have!==xm.have)return ym.have-xm.have;
-        if(xm.missing!==ym.missing)return xm.missing-ym.missing;
-        return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
-      });
+      .filter(r=>r._availability.missing===0)
+      .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'}));
   }
 
   grid.innerHTML=a.length?a.map(r=>{
@@ -1111,7 +1107,7 @@ function updateBreakfastCookableRecipesButton(){
   const btn=document.getElementById('breakfastCookableRecipesBtn');
   if(!btn)return;
   btn.classList.toggle('active',breakfastCookableOnly);
-  btn.textContent=breakfastCookableOnly?'🍳 Toutes les recettes':'🍳 Recettes faisables';
+  btn.textContent=breakfastCookableOnly?'🍳 Toutes les recettes':'🍳 Recettes réalisables';
 }
 
 function renderRecipes(){
@@ -1141,16 +1137,8 @@ function renderRecipes(){
       (!q||String(r.name||'').toLowerCase().includes(q))
     );
     a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
-      .sort((x,y)=>{
-        const xm=x._availability, ym=y._availability;
-        if(ym.have!==xm.have)return ym.have-xm.have;
-        if(xm.missing!==ym.missing)return xm.missing-ym.missing;
-        // En mode « Recettes faisables », les desserts passent en dernier :
-        // ils restent disponibles, mais ne sont pas prioritaires.
-        const xd=x.cat==='Dessert', yd=y.cat==='Dessert';
-        if(xd!==yd)return xd?1:-1;
-        return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
-      });
+      .filter(r=>r._availability.missing===0)
+      .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'}));
   }else{
     a=a.sort((x,y)=>{
       if(activeCat!=='Toutes')return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
