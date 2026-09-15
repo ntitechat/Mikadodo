@@ -299,7 +299,7 @@
 .ingredient-status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:6px;vertical-align:middle}
 .ingredient-status-dot.missing{background:#e53935}
 .ingredient-status-dot.stock{background:#2196f3}
-.cookable-stock-line{color:#2878c8;font-weight:700;margin-top:3px}
+.cookable-stock-line{color:#2878c8;font-weight:700;font-size:12px;line-height:1.2;margin-top:7px}
 </style>
 
 <style>
@@ -579,24 +579,36 @@ function isRecipeIngredientTitle(value){
   return String(value||'').trim().startsWith('*');
 }
 
-function recipeStockIngredientCount(recipe){
-  const links = Array.isArray(recipe?.ingredientLinks)?recipe.ingredientLinks:[];
-  let count=0;
+function recipeStockIngredientLocations(recipe){
+  const links=Array.isArray(recipe?.ingredientLinks)?recipe.ingredientLinks:[];
+  const counts={'Réfrigérateur':0,'Congélateur':0,'Placard':0};
   (Array.isArray(recipe?.ingredients)?recipe.ingredients:[]).forEach((ingredient,i)=>{
     const raw=String(ingredient||'').trim();
     if(!raw || isRecipeIngredientTitle(raw) || isAlwaysAvailableIngredient(raw)) return;
     const link=links[i];
+    let stockItem=null;
     if(link?.stockId){
       const linkedStock=(Array.isArray(state.stock)?state.stock:[]).find(x=>Number(x.id)===Number(link.stockId));
       const availableQty=Number(linkedStock?.qty);
       const requiredQty=Math.max(0,Number(link.qty)||0);
       const enoughQty=linkedStock && String(linkedStock.name||'').trim() && (!Number.isFinite(availableQty) || availableQty >= (requiredQty || 1));
-      if(enoughQty) count++;
-      return;
+      if(enoughQty) stockItem=linkedStock;
+    }else{
+      stockItem=findStockForRecipeIngredient(raw);
     }
-    if(findStockForRecipeIngredient(raw)) count++;
+    if(stockItem && counts.hasOwnProperty(stockItem.place)) counts[stockItem.place]++;
   });
-  return count;
+  return counts;
+}
+
+function recipeStockLocationLabel(recipe){
+  const counts=recipeStockIngredientLocations(recipe);
+  const labels=[];
+  const names={'Réfrigérateur':'le réfrigérateur','Congélateur':'le congélateur','Placard':'le placard'};
+  Object.entries(counts).forEach(([place,count])=>{
+    if(count>0) labels.push(`${count} ${count===1?'ingrédient':'ingrédients'} dans ${names[place]}`);
+  });
+  return labels.join(' · ');
 }
 
 function recipeIngredientAvailability(recipe){
@@ -1058,8 +1070,8 @@ function renderRecipes(){
   document.getElementById('recipeGrid').innerHTML=a.length?a.map(r=>{
     const av=cookableRecipesOnly?(r._availability||recipeIngredientAvailability(r)):null;
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
-    const stockCount=cookableRecipesOnly?recipeStockIngredientCount(r):0;
-    const stockLine=stockCount>0?`<div class="cookable-stock-line">🔵 ${stockCount} ${stockCount===1?'ingrédient':'ingrédients'} dans le stock</div>`:'';
+    const stockLabel=cookableRecipesOnly?recipeStockLocationLabel(r):'';
+    const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
     return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesOnly ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
