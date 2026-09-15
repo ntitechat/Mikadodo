@@ -1179,7 +1179,16 @@ if('serviceWorker'in navigator){
   navigator.serviceWorker.register('sw.js').then(reg=>reg.update()).catch(()=>{});
 }
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='restart-cooking-timer'){try{const x=JSON.parse(localStorage.getItem('mikadodo-cooking-timer')||'null');if(x&&x.minutes)startCookingTimer(x.minutes,encodeURIComponent(x.name||''));}catch(err){}}});
-initPhotoStorage().then(()=>{renderAll();restoreBackgroundTimer()});
+renderAll();
+restoreBackgroundTimer();
+// Chargement différé du gros fichier de récupération des photos : l'interface s'affiche immédiatement.
+setTimeout(()=>{
+  const script=document.createElement('script');
+  script.src='mikadodo-photos-recovery.js';
+  script.onload=()=>initPhotoStorage().then(()=>renderAll());
+  script.onerror=()=>initPhotoStorage().then(()=>renderAll());
+  document.head.appendChild(script);
+},0);
 checkNotifications();
 scheduleNotificationCheck();
 </script>
