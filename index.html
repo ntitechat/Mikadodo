@@ -395,7 +395,7 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
  <div class="section-head">
   <h2>🥐 Petit déjeuner</h2>
   <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-    <button class="btn purple" onclick="createBreakfastDish()">🍽️ Créer un petit déj</button>
+    <button id="breakfastCookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleBreakfastCookableRecipes()">🍳 Recettes faisables</button><button class="btn purple" onclick="createBreakfastDish()">🍽️ Créer un petit déj</button>
   </div>
 </div>
  <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/>
@@ -569,6 +569,7 @@ navigationReady=true;
 function renderAll(){syncStockExpiryAgenda();renderRecipes();renderBreakfastRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all',shoppingSearch='',shoppingIngredientFilter='all',shoppingRecipeFilterIds=[];
 let cookableRecipesOnly=false;
+let breakfastCookableOnly=false;
 function formatDuration(minutes){minutes=Number(minutes)||0;if(minutes<=0)return '';if(minutes<60)return `${minutes}min`;let h=Math.floor(minutes/60),m=minutes%60;return m?`${h}h${String(m).padStart(2,'0')}`:`${h}h`}
 function servingMeta(r){
   const units={
@@ -1066,12 +1067,45 @@ function renderBreakfastRecipes(){
   if(!grid)return;
   renderBreakfastCategories();
   const q=(document.getElementById('breakfastSearch')?.value||'').toLowerCase().trim();
-  const a=state.recipes
+  let a=state.recipes
     .filter(r=>r.cat==='Petit-déjeuner'
       && (activeBreakfastCategory==='Toutes'||r.breakfastCategory===activeBreakfastCategory)
       && (!q||String(r.name||'').toLowerCase().includes(q)))
     .sort((x,y)=>String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'}));
-  grid.innerHTML=a.length?a.map(r=>`<article class="card recipe-card clickable" onclick="openRecipe(${r.id})"><div class="card-body"><h3>${esc(r.name)}</h3><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${durationMeta(r)?`<span class="meta" style="margin:0">${durationMeta(r)}</span>`:''}${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div></div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
+
+  if(breakfastCookableOnly){
+    a=a.filter(r=>!r.hideFromCookable)
+      .map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
+      .sort((x,y)=>{
+        const xm=x._availability, ym=y._availability;
+        if(ym.have!==xm.have)return ym.have-xm.have;
+        if(xm.missing!==ym.missing)return xm.missing-ym.missing;
+        return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
+      });
+  }
+
+  grid.innerHTML=a.length?a.map(r=>{
+    const av=breakfastCookableOnly?(r._availability||recipeIngredientAvailability(r)):null;
+    const availability=av?(av.missing===0
+      ?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`
+      :`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
+    const stockLabel=breakfastCookableOnly?recipeStockLocationLabel(r):'';
+    const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableOnly ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
+  }).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
+
+  updateBreakfastCookableRecipesButton();
+}
+
+function toggleBreakfastCookableRecipes(){
+  breakfastCookableOnly=!breakfastCookableOnly;
+  renderBreakfastRecipes();
+}
+function updateBreakfastCookableRecipesButton(){
+  const btn=document.getElementById('breakfastCookableRecipesBtn');
+  if(!btn)return;
+  btn.classList.toggle('active',breakfastCookableOnly);
+  btn.textContent=breakfastCookableOnly?'🍳 Toutes les recettes':'🍳 Recettes faisables';
 }
 
 function renderRecipes(){
