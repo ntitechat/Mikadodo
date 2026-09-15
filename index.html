@@ -52,6 +52,12 @@
 .cookable-recipes-btn{
   padding:6px 10px !important;
   font-size:12px !important;
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0 !important;
+  visibility:visible !important;
+  opacity:1 !important;
 }
 </style>
 
@@ -87,7 +93,7 @@
   display:block;
   width:100%;
 }
-.recipe-availability.complete{
+.recipe-availability.complete{display:block!important;visibility:visible!important;opacity:1!important;
   color:#4f8b67;
 }
 </style>
@@ -309,10 +315,12 @@
 </style>
 
 <style>
-button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
-  font-size:1.15em !important;
-  padding:12px 20px !important;
-  min-height:48px !important;
+button.cookable-btn, .cookable-btn, #cookableRecipesBtn, #breakfastCookableRecipesBtn {
+  font-size:12px !important;
+  padding:6px 10px !important;
+  min-height:0 !important;
+  height:auto !important;
+  flex-shrink:0 !important;
 }
 </style>
 
