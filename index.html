@@ -557,7 +557,7 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}
 let currentView='recipes';
 let navigationReady=false;
 function applyView(v){currentView=v||'recipes';document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===currentView));document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===currentView));document.getElementById('fab').style.display=(currentView==='recipes'||currentView==='breakfast')?'block':'none';renderAll()}
-function switchView(v,push=true){if(!v)return;if(v==='recipes')cookableRecipesOnly=false;if(push){history.pushState({mikadodo:true,view:v},'',`#${v}`)}applyView(v)}
+function switchView(v,push=true){if(!v)return;if(v==='recipes'){cookableRecipesOnly=false;cookableRecipesMode=0;}if(push){history.pushState({mikadodo:true,view:v},'',`#${v}`)}applyView(v)}
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
 window.addEventListener('popstate',event=>{
   const st=event.state;
@@ -733,15 +733,21 @@ function recipeIngredientAvailability(recipe){
 }
 
 function toggleCookableRecipes(){
-  cookableRecipesOnly=!cookableRecipesOnly;
+  // Cycle : toutes les recettes → faisables → réalisables → toutes.
+  cookableRecipesMode=(cookableRecipesMode+1)%3;
+  cookableRecipesOnly=cookableRecipesMode>0;
   renderRecipes();
 }
 
 function updateCookableRecipesButton(){
   const btn=document.getElementById('cookableRecipesBtn');
   if(!btn)return;
-  btn.classList.toggle('active',cookableRecipesOnly);
-  btn.textContent=cookableRecipesOnly?'🍳 Toutes les recettes':'🍳 Recettes faisables';
+  btn.classList.toggle('active',cookableRecipesMode>0);
+  btn.textContent=cookableRecipesMode===0
+    ?'🍳 Recettes faisables'
+    :cookableRecipesMode===1
+      ?'🍳 Recettes réalisables'
+      :'🍳 Toutes les recettes';
 }
 
 const BREAKFAST_TYPES=['laitage','céréales','fruit'];
@@ -1129,28 +1135,30 @@ function renderRecipes(){
     (!q||r.name.toLowerCase().includes(q))
   );
 
-  // En mode « Recettes faisables », afficher toutes les recettes de la
-  // section Recettes, sans aucune limite sur le nombre d'ingrédients
-  // manquants. Les catégories restent actives : si l'utilisateur choisit
-  // « Plat », seules les recettes de la catégorie « Plat » sont affichées.
-  // La disponibilité et les ingrédients manquants restent affichés sur chaque fiche.
-  if(cookableRecipesOnly){
+  // Mode « Recettes faisables » : affiche les recettes pour lesquelles
+  // l'état des ingrédients peut être évalué, même s'il en manque.
+  // Mode « Recettes réalisables » : ne garde que celles dont TOUS les
+  // ingrédients nécessaires sont disponibles.
+  if(cookableRecipesMode>0){
     a=regularRecipes.filter(r=>
       !r.hideFromCookable &&
       (activeCat==='Toutes'||r.cat===activeCat)&&
       (!q||String(r.name||'').toLowerCase().includes(q))
     );
-    a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
-      .sort((x,y)=>{
-        const xm=x._availability, ym=y._availability;
+    a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}));
+    if(cookableRecipesMode===2){
+      a=a.filter(r=>r._availability.missing===0);
+    }
+    a=a.sort((x,y)=>{
+      const xm=x._availability, ym=y._availability;
+      if(cookableRecipesMode===1){
         if(ym.have!==xm.have)return ym.have-xm.have;
         if(xm.missing!==ym.missing)return xm.missing-ym.missing;
-        // En mode « Recettes faisables », les desserts passent en dernier :
-        // ils restent disponibles, mais ne sont pas prioritaires.
-        const xd=x.cat==='Dessert', yd=y.cat==='Dessert';
-        if(xd!==yd)return xd?1:-1;
-        return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
-      });
+      }
+      const xd=x.cat==='Dessert', yd=y.cat==='Dessert';
+      if(xd!==yd)return xd?1:-1;
+      return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
+    });
   }else{
     a=a.sort((x,y)=>{
       if(activeCat!=='Toutes')return String(x.name||'').localeCompare(String(y.name||''),'fr',{sensitivity:'base'});
@@ -1161,11 +1169,11 @@ function renderRecipes(){
   }
 
   document.getElementById('recipeGrid').innerHTML=a.length?a.map(r=>{
-    const av=cookableRecipesOnly?(r._availability||recipeIngredientAvailability(r)):null;
+    const av=cookableRecipesMode>0?(r._availability||recipeIngredientAvailability(r)):null;
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
-    const stockLabel=cookableRecipesOnly?recipeStockLocationLabel(r):'';
+    const stockLabel=cookableRecipesMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesOnly ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
   updateCookableRecipesButton();
