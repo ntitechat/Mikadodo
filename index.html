@@ -618,7 +618,7 @@ function updateCookableRecipesButton(){
 }
 
 const BREAKFAST_TYPES=['laitage','céréales','fruit'];
-const BREAKFAST_TYPE_LABELS={laitage:'Laitage',céréales:'Féculent',fruit:'Fruit'};
+const BREAKFAST_TYPE_LABELS={laitage:'🥛 Laitage',céréales:'🌾 Féculent',fruit:'🍎 Fruit'};
 function recipeTypes(r){
   return Array.isArray(r?.types)?r.types.filter(t=>BREAKFAST_TYPES.includes(t)):[];
 }
