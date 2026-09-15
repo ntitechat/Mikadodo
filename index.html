@@ -389,7 +389,7 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
 <div class="app">
 <header class="top">
   <div class="hero"></div>
-  <nav class="top-nav" aria-label="Navigation principale"><button class="active" data-view="recipes">📖 Recettes</button><button data-view="breakfast">🥐 Petit déjeuner</button><button data-view="stock">🧊 Stock</button><button data-view="agenda">📅 Agenda</button><button data-view="shopping">🛒 Courses</button></nav>
+  <nav class="top-nav" aria-label="Navigation principale"><button type="button" class="active" data-view="recipes">📖 Recettes</button><button type="button" data-view="breakfast">🥐 Petit déjeuner</button><button type="button" data-view="stock">🧊 Stock</button><button type="button" data-view="agenda">📅 Agenda</button><button type="button" data-view="shopping">🛒 Courses</button></nav>
 </header>
 <main>
 <section id="recipes" class="view active">
@@ -556,9 +556,34 @@ if(window.MIKADODO_RECOVERY_PHOTOS){
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function recipeMoney(n){let v=Number(n)||0;return (Number.isInteger(v)?String(v):v.toFixed(2).replace(/0+$/,'').replace(/\.$/, '').replace('.',','))+'€'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 let currentView='recipes';
 let navigationReady=false;
-function applyView(v){currentView=v||'recipes';document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===currentView));document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===currentView));document.getElementById('fab').style.display=(currentView==='recipes'||currentView==='breakfast')?'block':'none';renderAll()}
-function switchView(v,push=true){if(!v)return;if(v==='recipes'){cookableRecipesOnly=false;cookableRecipesMode=0;}if(v==='breakfast'){breakfastCookableOnly=false;breakfastCookableMode=0;}if(push){history.pushState({mikadodo:true,view:v},'',`#${v}`)}applyView(v)}
-document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.view)));
+function renderCurrentView(){
+  try{
+    if(currentView==='recipes') renderRecipes();
+    else if(currentView==='breakfast') renderBreakfastRecipes();
+    else if(currentView==='stock') renderStock();
+    else if(currentView==='agenda') renderAgenda();
+    else if(currentView==='shopping') renderShopping();
+    else if(currentView==='notes') renderNotes();
+    updateReminder();
+  }catch(e){ console.error('Erreur d’affichage de la vue',currentView,e); }
+}
+function applyView(v){
+  const allowed=['recipes','breakfast','stock','agenda','shopping','notes'];
+  currentView=allowed.includes(v)?v:'recipes';
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===currentView));
+  document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===currentView));
+  const fab=document.getElementById('fab');
+  if(fab) fab.style.display=(currentView==='recipes'||currentView==='breakfast')?'block':'none';
+  renderCurrentView();
+}
+function switchView(v,push=true){
+  if(!v)return;
+  if(v==='recipes'){cookableRecipesOnly=false;cookableRecipesMode=0;}
+  if(v==='breakfast'){breakfastCookableOnly=false;breakfastCookableMode=0;}
+  if(push){history.pushState({mikadodo:true,view:v},'',`#${v}`)}
+  applyView(v);
+}
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();switchView(b.dataset.view);}));
 window.addEventListener('popstate',event=>{
   const st=event.state;
   if(st?.mikadodo){
@@ -572,9 +597,19 @@ window.addEventListener('popstate',event=>{
 history.replaceState({mikadodo:true,view:'recipes'},'',location.href.split('#')[0]+'#recipes');
 history.pushState({mikadodo:true,view:'recipes'},'',`#recipes`);
 navigationReady=true;
-function renderAll(){syncStockExpiryAgenda();renderRecipes();renderBreakfastRecipes();renderStock();renderAgenda();renderShopping();renderNotes();updateReminder()}
+function renderAll(){
+  try{syncStockExpiryAgenda();}catch(e){console.warn('syncStockExpiryAgenda',e)}
+  try{renderRecipes();}catch(e){console.warn('renderRecipes',e)}
+  try{renderBreakfastRecipes();}catch(e){console.warn('renderBreakfastRecipes',e)}
+  try{renderStock();}catch(e){console.warn('renderStock',e)}
+  try{renderAgenda();}catch(e){console.warn('renderAgenda',e)}
+  try{renderShopping();}catch(e){console.warn('renderShopping',e)}
+  try{renderNotes();}catch(e){console.warn('renderNotes',e)}
+  try{updateReminder();}catch(e){console.warn('updateReminder',e)}
+}
 const cats=()=>['Toutes',...state.recipeCategories];let activeCat='Toutes',stockFilter='all',shoppingCatFilter='all',shoppingSearch='',shoppingIngredientFilter='all',shoppingRecipeFilterIds=[];
 let cookableRecipesOnly=false;
+let cookableRecipesMode=0;
 let breakfastCookableMode=0;
 let breakfastCookableOnly=false;
 function formatDuration(minutes){minutes=Number(minutes)||0;if(minutes<=0)return '';if(minutes<60)return `${minutes}min`;let h=Math.floor(minutes/60),m=minutes%60;return m?`${h}h${String(m).padStart(2,'0')}`:`${h}h`}
