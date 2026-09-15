@@ -579,6 +579,26 @@ function isRecipeIngredientTitle(value){
   return String(value||'').trim().startsWith('*');
 }
 
+function recipeStockIngredientCount(recipe){
+  const links = Array.isArray(recipe?.ingredientLinks)?recipe.ingredientLinks:[];
+  let count=0;
+  (Array.isArray(recipe?.ingredients)?recipe.ingredients:[]).forEach((ingredient,i)=>{
+    const raw=String(ingredient||'').trim();
+    if(!raw || isRecipeIngredientTitle(raw) || isAlwaysAvailableIngredient(raw)) return;
+    const link=links[i];
+    if(link?.stockId){
+      const linkedStock=(Array.isArray(state.stock)?state.stock:[]).find(x=>Number(x.id)===Number(link.stockId));
+      const availableQty=Number(linkedStock?.qty);
+      const requiredQty=Math.max(0,Number(link.qty)||0);
+      const enoughQty=linkedStock && String(linkedStock.name||'').trim() && (!Number.isFinite(availableQty) || availableQty >= (requiredQty || 1));
+      if(enoughQty) count++;
+      return;
+    }
+    if(findStockForRecipeIngredient(raw)) count++;
+  });
+  return count;
+}
+
 function recipeIngredientAvailability(recipe){
   const shopping = Array.isArray(state.shopping)?state.shopping:[];
   const availableText = shopping
@@ -1038,7 +1058,9 @@ function renderRecipes(){
   document.getElementById('recipeGrid').innerHTML=a.length?a.map(r=>{
     const av=cookableRecipesOnly?(r._availability||recipeIngredientAvailability(r)):null;
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesOnly ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${availability}</div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
+    const stockCount=cookableRecipesOnly?recipeStockIngredientCount(r):0;
+    const stockLine=stockCount>0?`<div class="cookable-stock-line">🔵 ${stockCount} ${stockCount===1?'ingrédient':'ingrédients'} dans le stock</div>`:'';
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesOnly ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
   updateCookableRecipesButton();
