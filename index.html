@@ -930,11 +930,12 @@ function renderRecipes(){
     (!q||r.name.toLowerCase().includes(q))
   );
 
-  // Le bouton affiche les recettes compatibles avec la liste de courses,
-  // uniquement lorsqu'il manque au maximum 4 ingrédients.
+  // En mode « Recettes faisables », afficher toutes les recettes sans
+  // filtrer selon le nombre d'ingrédients manquants, ni la recherche
+  // ou la catégorie sélectionnée. La disponibilité reste affichée sur chaque fiche.
   if(cookableRecipesOnly){
+    a=[...state.recipes];
     a=a.map(r=>({...r,_availability:recipeIngredientAvailability(r)}))
-      .filter(r=>r._availability.missing<=4)
       .sort((x,y)=>{
         const xm=x._availability, ym=y._availability;
         if(ym.have!==xm.have)return ym.have-xm.have;
