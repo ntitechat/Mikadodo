@@ -26,6 +26,45 @@
   window.__sortCourseCategories=__sortCourseCategories;
 })();
 </script>
+
+<style>
+.clear-search-btn{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  border:0;
+  background:transparent;
+  font-size:18px;
+  line-height:1;
+  color:#888;
+  cursor:pointer;
+  padding:2px 5px;
+  display:none;
+}
+.clear-search-btn:hover{color:#555;}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('input[data-clear-search="true"]').forEach(function(input){
+    var parent=input.parentElement;
+    if(!parent) return;
+    var cs=getComputedStyle(parent);
+    if(cs.position==='static') parent.style.position='relative';
+    var btn=parent.querySelector('.clear-search-btn');
+    if(!btn) return;
+    function toggle(){ btn.style.display=input.value ? 'block' : 'none'; }
+    input.addEventListener('input', toggle);
+    btn.addEventListener('click', function(){
+      input.value='';
+      input.focus();
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    });
+    toggle();
+  });
+});
+</script>
 </head>
 <body>
 <div class="app">
@@ -36,12 +75,12 @@
 <main>
 <section id="recipes" class="view active">
  <div class="section-head"><h2>Mes recettes</h2></div>
- <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette, un ingrédient…" oninput="renderRecipes()"/>
+ <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette, un ingrédient…" oninput="renderRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
 </section>
 <section id="stock" class="view">
  <div class="section-head"><h2>Mon stock</h2><button class="btn" onclick="openStockModal()">＋ Ajouter</button></div>
- <input id="stockSearch" class="search" placeholder="🔍 Rechercher par nom ou marque…" oninput="renderStock()"/>
+ <input id="stockSearch" class="search" placeholder="🔍 Rechercher par nom ou marque…" oninput="renderStock()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div class="chips"><button class="chip active" onclick="stockFilter='all';renderStock()">Tout</button><button class="chip" onclick="stockFilter='Réfrigérateur';renderStock()">🧊 Réfrigérateur</button><button class="chip" onclick="stockFilter='Congélateur';renderStock()">❄️ Congélateur</button><button class="chip" onclick="stockFilter='Placard';renderStock()">🏠 Placard</button></div>
  <div id="stockList"></div>
 </section>

@@ -148,6 +148,45 @@
   window.__sortCourseCategories=__sortCourseCategories;
 })();
 </script>
+
+<style>
+.clear-search-btn{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  border:0;
+  background:transparent;
+  font-size:18px;
+  line-height:1;
+  color:#888;
+  cursor:pointer;
+  padding:2px 5px;
+  display:none;
+}
+.clear-search-btn:hover{color:#555;}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('input[data-clear-search="true"]').forEach(function(input){
+    var parent=input.parentElement;
+    if(!parent) return;
+    var cs=getComputedStyle(parent);
+    if(cs.position==='static') parent.style.position='relative';
+    var btn=parent.querySelector('.clear-search-btn');
+    if(!btn) return;
+    function toggle(){ btn.style.display=input.value ? 'block' : 'none'; }
+    input.addEventListener('input', toggle);
+    btn.addEventListener('click', function(){
+      input.value='';
+      input.focus();
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    });
+    toggle();
+  });
+});
+</script>
 </head>
 <body>
 <div class="app">
@@ -158,7 +197,7 @@
 <main>
 <section id="recipes" class="view active">
  <div class="section-head"><h2>Mes recettes</h2><div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;min-width:0"><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div></div>
- <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" oninput="renderRecipes()"/>
+ <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" oninput="renderRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
 </section>
 <section id="breakfast" class="view">
@@ -168,13 +207,13 @@
     <button class="btn" onclick="openBreakfastRecipeModal()">＋ Ajouter</button>
   </div>
 </div>
- <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/>
+ <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div id="breakfastCategories" class="chips"></div>
  <div id="breakfastGrid" class="grid"></div>
 </section>
 <section id="stock" class="view">
  <div class="section-head"><h2>Mon stock</h2><button class="btn" onclick="openStockModal()">＋ Ajouter</button></div>
- <input id="stockSearch" class="search" placeholder="🔍 Rechercher par nom ou marque…" oninput="renderStock()"/>
+ <input id="stockSearch" class="search" placeholder="🔍 Rechercher par nom ou marque…" oninput="renderStock()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div class="chips"><button class="chip active" onclick="stockFilter='all';renderStock()">Tout</button><button class="chip" onclick="stockFilter='Réfrigérateur';renderStock()">🧊 Réfrigérateur</button><button class="chip" onclick="stockFilter='Congélateur';renderStock()">❄️ Congélateur</button><button class="chip" onclick="stockFilter='Placard';renderStock()">🏠 Placard</button></div>
  <div id="stockList"></div>
 </section>
@@ -988,7 +1027,7 @@ function updateReminder(){let now=new Date(),future=state.agenda.map(x=>({...x,d
 function setRecipeCategory(v){activeCat=decodeURIComponent(v);renderRecipes()}
 function setShoppingCategory(v){shoppingRecipeFilterIds=[];shoppingCatFilter=decodeURIComponent(v);renderShopping()}
 function setShoppingSearch(v){shoppingRecipeFilterIds=[];shoppingSearch=v||'';renderShopping();let el=document.getElementById('shoppingSearch');if(el){el.focus();try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){}}}
-function shopMoney(n){let v=Number(n)||0;return Number.isInteger(v)?v+' €':v.toFixed(2).replace('.',',').replace(/,00$/,'')+' €'}function renderShopping(){let q=String(shoppingSearch||'').trim().toLocaleLowerCase('fr');let catsToShow=shoppingCatFilter==='all'?state.shoppingCategories:[shoppingCatFilter];let html=state.shopping.length?catsToShow.map(cat=>{let items=state.shopping.filter(x=>(x.cat||'Autre')===cat&&(shoppingIngredientFilter==='toBuy'?!x.done:shoppingIngredientFilter==='bought'?x.done:true)&&(!shoppingRecipeFilterIds.length||shoppingRecipeFilterIds.includes(Number(x.id)))&&(!q||String(x.name||'').toLocaleLowerCase('fr').includes(q))).sort((a,b)=>(a.done-b.done)||String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));if(!items.length)return '';let notBought=items.filter(x=>!x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let bought=items.filter(x=>x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let catTotal=notBought+bought;return `<div class="stock-group"><div class="shopping-category-title"><span>🛒 ${esc(cat)}</span><span class="category-title-total">${shopMoney(catTotal)}</span></div><div class="category-stats"><span>Pas acheté <strong>${shopMoney(notBought)}</strong></span><span>Acheté <strong>${shopMoney(bought)}</strong></span><span>Total <strong>${shopMoney(catTotal)}</strong></span></div><div style="background:#fff;border-radius:0 0 15px 15px;box-shadow:var(--shadow);overflow:hidden">${items.map(x=>`<div class="shop-item shopping-item-compact clickable" data-shop-id="${x.id}" onclick="openShopEdit(${x.id})"><button class="check ${x.done?'on':''}" onclick="event.stopPropagation();toggleShop(${x.id})">${x.done?'✓':''}</button><div class="shop-name ${x.done?'done':''}"><b>${esc(x.name)}</b><div class="small">${x.qty} × ${shopMoney(x.price)}</div></div><span class="shop-price">${shopMoney(x.price)}</span></div>`).join('')}</div></div>`}).join(''):(q?'<div class="empty">Aucun article ne correspond à ta recherche.</div>':'<div class="empty">Ta liste de courses est vide.</div>');document.getElementById('shopList').innerHTML=`<input id="shoppingSearch" class="search" type="search" value="${esc(shoppingSearch)}" placeholder="🔎 Rechercher un article..." oninput="setShoppingSearch(this.value)"><div class="chips" style="margin-bottom:10px"><button class="chip ${shoppingCatFilter==='all'?'active':''}" onclick="shoppingCatFilter='all';renderShopping()">Toutes</button>${state.shoppingCategories.map(c=>`<button class="chip ${shoppingCatFilter===c?'active':''}" onclick="setShoppingCategory('${encodeURIComponent(c)}')">${esc(c)}</button>`).join('')}</div>${html}`;updateShoppingIngredientFilterButton();
+function shopMoney(n){let v=Number(n)||0;return Number.isInteger(v)?v+' €':v.toFixed(2).replace('.',',').replace(/,00$/,'')+' €'}function renderShopping(){let q=String(shoppingSearch||'').trim().toLocaleLowerCase('fr');let catsToShow=shoppingCatFilter==='all'?state.shoppingCategories:[shoppingCatFilter];let html=state.shopping.length?catsToShow.map(cat=>{let items=state.shopping.filter(x=>(x.cat||'Autre')===cat&&(shoppingIngredientFilter==='toBuy'?!x.done:shoppingIngredientFilter==='bought'?x.done:true)&&(!shoppingRecipeFilterIds.length||shoppingRecipeFilterIds.includes(Number(x.id)))&&(!q||String(x.name||'').toLocaleLowerCase('fr').includes(q))).sort((a,b)=>(a.done-b.done)||String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));if(!items.length)return '';let notBought=items.filter(x=>!x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let bought=items.filter(x=>x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let catTotal=notBought+bought;return `<div class="stock-group"><div class="shopping-category-title"><span>🛒 ${esc(cat)}</span><span class="category-title-total">${shopMoney(catTotal)}</span></div><div class="category-stats"><span>Pas acheté <strong>${shopMoney(notBought)}</strong></span><span>Acheté <strong>${shopMoney(bought)}</strong></span><span>Total <strong>${shopMoney(catTotal)}</strong></span></div><div style="background:#fff;border-radius:0 0 15px 15px;box-shadow:var(--shadow);overflow:hidden">${items.map(x=>`<div class="shop-item shopping-item-compact clickable" data-shop-id="${x.id}" onclick="openShopEdit(${x.id})"><button class="check ${x.done?'on':''}" onclick="event.stopPropagation();toggleShop(${x.id})">${x.done?'✓':''}</button><div class="shop-name ${x.done?'done':''}"><b>${esc(x.name)}</b><div class="small">${x.qty} × ${shopMoney(x.price)}</div></div><span class="shop-price">${shopMoney(x.price)}</span></div>`).join('')}</div></div>`}).join(''):(q?'<div class="empty">Aucun article ne correspond à ta recherche.</div>':'<div class="empty">Ta liste de courses est vide.</div>');document.getElementById('shopList').innerHTML=`<input id="shoppingSearch" class="search" type="search" value="${esc(shoppingSearch)}" placeholder="🔎 Rechercher un article..." oninput="setShoppingSearch(this.value)" style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button><div class="chips" style="margin-bottom:10px"><button class="chip ${shoppingCatFilter==='all'?'active':''}" onclick="shoppingCatFilter='all';renderShopping()">Toutes</button>${state.shoppingCategories.map(c=>`<button class="chip ${shoppingCatFilter===c?'active':''}" onclick="setShoppingCategory('${encodeURIComponent(c)}')">${esc(c)}</button>`).join('')}</div>${html}`;updateShoppingIngredientFilterButton();
 }
 
 
