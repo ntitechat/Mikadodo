@@ -1857,7 +1857,7 @@ function saveTestRecipe(id){
   const link=document.getElementById('trLink').value.trim();
   const notes=document.getElementById('trNotes').value.trim();
   if(!name)return toast('Indique un nom');
-  if(link && !/^https?:\\/\\//i.test(link))return toast('Colle un lien complet (https://…)');
+  if(link && !/^https?:\/\//i.test(link))return toast('Colle un lien complet (https://…)');
   if(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(x)Object.assign(x,{name,link,notes});}
   else state.testRecipes.unshift({id:Date.now(),name,link,notes,done:false});
   save();closeModal();renderTestRecipes();toast(id?'Recette à tester modifiée ✨':'Recette à tester ajoutée');
