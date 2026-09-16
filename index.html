@@ -420,7 +420,7 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
  <div id="calendar" class="calendar"></div>
 </section>
 <section id="shopping" class="view">
- <div class="section-head"><h2>Liste de courses</h2><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="openShopModal()">＋ Article</button><button class="btn shopping-ingredient-filter-btn" onclick="cycleShoppingIngredientFilter()" id="shoppingIngredientsFilterBtn">afficher les ingrédients à acheter</button></div></div>
+ <div class="section-head"><h2>Liste de courses</h2><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><button class="btn" onclick="switchView('notes')">🛍️ Achats</button><button class="btn" onclick="openShopModal()">＋ Article</button><button class="btn shopping-ingredient-filter-btn" onclick="cycleShoppingIngredientFilter()" id="shoppingIngredientsFilterBtn">afficher les ingrédients à acheter</button></div></div>
  
  <div id="shopList"></div>
 </section><section id="notes" class="view"><div class="section-head"><div><h2>🛒 Achats</h2><div class="small">Tes listes, simplement.</div></div></div><div class="note-add"><input id="noteInput" placeholder="Ajouter un élément… (ex. Lait 2,50 €)" aria-label="Nom et prix de l’achat" onkeydown="if(event.key==='Enter')addNote()"><button class="btn purple" onclick="addNote()">＋</button></div><div id="notesList" class="notes-list"></div></section>
