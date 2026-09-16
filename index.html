@@ -423,6 +423,37 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
 }
 </style>
 
+
+<style id="recipe-appliance-grid-6-cols">
+/* Sélecteur des appareils : 6 appareils par ligne sur les grands écrans */
+.recipe-appliance-grid,
+.appliance-grid,
+.recipe-emoji-options {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+@media (max-width: 1100px) {
+  .recipe-appliance-grid,
+  .appliance-grid,
+  .recipe-emoji-options {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 700px) {
+  .recipe-appliance-grid,
+  .appliance-grid,
+  .recipe-emoji-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 480px) {
+  .recipe-appliance-grid,
+  .appliance-grid,
+  .recipe-emoji-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -509,7 +540,7 @@ const RECIPE_EMOJI_OPTIONS=[
    {id:'waffle-maker',label:'Gaufrier',src:'recipe-emoji-waffle-maker.png'},
    {id:'immersion-blender',label:'Mixeur plongeant',src:'recipe-emoji-immersion-blender.png'},
    {id:'kettle',label:'Bouilloire',src:'recipe-emoji-kettle.png'},
-   {id:'sous-vide',label:'Appareil sous vide',src:'recipe-emoji-sous-vide.png'}
+   {id:'sous-vide',label:'Sous vide',src:'recipe-emoji-sous-vide.png'}
 ];
 function recipeEmojiOptionById(id){return RECIPE_EMOJI_OPTIONS.find(x=>x.id===id)||RECIPE_EMOJI_OPTIONS[0]}
 function recipeEmojiSrc(id){return recipeEmojiOptionById(id).src||''}
