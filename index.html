@@ -545,7 +545,7 @@ const RECIPE_EMOJI_OPTIONS=[
 function recipeEmojiOptionById(id){return RECIPE_EMOJI_OPTIONS.find(x=>x.id===id)||RECIPE_EMOJI_OPTIONS[0]}
 function recipeEmojiSrc(id){return recipeEmojiOptionById(id).src||''}
 function recipeEmojiMarkup(r,cls=''){
-  const opt=RECIPE_EMOJI_OPTIONS.find(x=>x.id===(r?.appliance||r?.emoji||r?.device));
+  const opt=RECIPE_EMOJI_OPTIONS.find(x=>x.id===(r?.recipeEmoji||r?.appliance||r?.emoji||r?.device));
   if(!opt || opt.id==='none' || opt.id==='aucun') return '';
   if(opt.src) return `<img class="${cls}" src="${opt.src}" alt="${opt.label}" title="${opt.label}">`;
   if(opt.emoji) return `<span class="${cls}" aria-label="${opt.label}" title="${opt.label}">${opt.emoji}</span>`;
