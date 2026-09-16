@@ -481,8 +481,14 @@ let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
  mealHistory:[]
 };
 const RECIPE_EMOJI_OPTIONS=[
-  {id:'rice-cooker',label:'Cuiseur à riz',src:'recipe-emoji-rice-cooker.png'},
-  {id:'air-fryer',label:'Air fryer',src:'recipe-emoji-air-fryer.png'}
+   {id:'rice-cooker',label:'Cuiseur à riz',src:'recipe-emoji-rice-cooker.png'},
+   {id:'air-fryer',label:'Air fryer',src:'recipe-emoji-air-fryer.png'},
+   {id:'pan',label:'Poêle',src:'recipe-emoji-pan.png'},
+   {id:'oven',label:'Four',src:'recipe-emoji-oven.png'},
+   {id:'blender',label:'Blender portable',src:'recipe-emoji-blender.png'},
+   {id:'microwave',label:'Micro-ondes',src:'recipe-emoji-microwave.png'},
+   {id:'pot',label:'Casserole',src:'recipe-emoji-pot.png'},
+   {id:'thermomix',label:'Thermomix',src:'recipe-emoji-thermomix.png'}
 ];
 function recipeEmojiOptionById(id){return RECIPE_EMOJI_OPTIONS.find(x=>x.id===id)||RECIPE_EMOJI_OPTIONS[0]}
 function recipeEmojiSrc(id){return recipeEmojiOptionById(id).src}
