@@ -63,6 +63,13 @@
   padding:6px 10px !important;
   font-size:12px !important;
 }
+
+.recipe-search-wrap{position:relative;width:100%;display:block}
+.recipe-search-wrap input{width:100%;padding-right:52px!important;box-sizing:border-box}
+.recipe-search-clear{position:absolute!important;right:14px!important;top:50%!important;transform:translateY(-50%)!important;width:34px!important;height:34px!important;min-width:34px!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;color:#777!important;font-size:30px!important;line-height:34px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;z-index:3!important}
+.recipe-search-clear:hover{background:rgba(0,0,0,.05)!important}
+@media(max-width:600px){.recipe-search-clear{right:10px!important}}
+
 </style>
 
 <style>
@@ -511,7 +518,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <main>
 <section id="recipes" class="view active">
  <div class="section-head"><h2>Mes recettes</h2><div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;min-width:0"><button id="cookableRecipesBtn" class="cookable-recipes-btn" onclick="toggleCookableRecipes()">🍳 Recettes faisables</button></div></div>
- <input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" onfocus="activeCat='Toutes';renderRecipes()" oninput="renderRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
+ <div class="recipe-search-wrap"><input id="recipeSearch" class="search" placeholder="🔍 Rechercher une recette…" onfocus="activeCat='Toutes';renderRecipes()" oninput="renderRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button></div>
  <div id="recipeChips" class="chips"></div><div id="recipeGrid" class="grid"></div>
 </section>
 <section id="breakfast" class="view">
@@ -2157,4 +2164,16 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  const i=document.querySelector('#recipeSearch,#searchRecipes');
+  const b=document.querySelector('.recipe-search-clear');
+  if(!i||!b)return;
+  const sync=()=>{b.style.display=i.value?'flex':'none'};
+  i.addEventListener('input',sync);
+  sync();
+});
+</script>
+
 </body></html>
