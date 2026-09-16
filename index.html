@@ -409,6 +409,20 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
 }
 </style>
 
+
+<style id="recipe-appliance-icons-fix">
+.recipe-duration-emoji,
+.recipe-appliance-emoji,
+.recipe-appliance-icon,
+.recipe-card-appliance img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  vertical-align: middle;
+  display: inline-block;
+}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -494,12 +508,18 @@ const RECIPE_EMOJI_OPTIONS=[
    {id:'food-processor',label:'Robot pâtissier',src:'recipe-emoji-food-processor.png'},
    {id:'waffle-maker',label:'Gaufrier',src:'recipe-emoji-waffle-maker.png'},
    {id:'immersion-blender',label:'Mixeur plongeant',src:'recipe-emoji-immersion-blender.png'},
-   {id:'kettle',label:'Bouilloire',emoji:'🫖'},
+   {id:'kettle',label:'Bouilloire',src:'recipe-emoji-kettle.png'},
    {id:'sous-vide',label:'Appareil sous vide',src:'recipe-emoji-sous-vide.png'}
 ];
 function recipeEmojiOptionById(id){return RECIPE_EMOJI_OPTIONS.find(x=>x.id===id)||RECIPE_EMOJI_OPTIONS[0]}
 function recipeEmojiSrc(id){return recipeEmojiOptionById(id).src||''}
-function recipeEmojiMarkup(r,className=''){const opt=RECIPE_EMOJI_OPTIONS.find(x=>x.id===r?.recipeEmoji);if(!opt||opt.id==='none')return '';return opt.src?`<img class="${className||'recipe-detail-emoji'}" src="${opt.src}" alt="${esc(opt.label)}">`:`<span class="${className||'recipe-detail-emoji'} recipe-emoji-text" aria-label="${esc(opt.label)}">${opt.emoji||''}</span>`}
+function recipeEmojiMarkup(r,cls=''){
+  const opt=RECIPE_EMOJI_OPTIONS.find(x=>x.id===(r?.appliance||r?.emoji||r?.device));
+  if(!opt || opt.id==='none' || opt.id==='aucun') return '';
+  if(opt.src) return `<img class="${cls}" src="${opt.src}" alt="${opt.label}" title="${opt.label}">`;
+  if(opt.emoji) return `<span class="${cls}" aria-label="${opt.label}" title="${opt.label}">${opt.emoji}</span>`;
+  return '';
+}
 function recipeEmojiPickerVisual(x){return x.src?`<img src="${x.src}" alt="">`:`<span class="recipe-emoji-picker-symbol">${x.emoji||''}</span>`}
 function renderRecipeEmojiPicker(selected){
   const value=RECIPE_EMOJI_OPTIONS.some(x=>x.id===selected)?selected:'none';
