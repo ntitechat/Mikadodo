@@ -49,7 +49,7 @@
 .recipe-detail-modal p{margin:7px 0}
 .recipe-detail-modal h3{margin:11px 0 5px}
 .recipe-detail-modal .actions{margin-top:9px}
-.recipe-edit-modal{padding:16px}
+.recipe-edit-modal{padding:16px} .test-recipe-ingredient-row select{min-width:0;width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:9px;background:#fff} @media(max-width:600px){.test-recipe-ingredient-row{grid-template-columns:1fr !important}.test-recipe-ingredient-row .btn{width:100%}}
 .recipe-edit-modal .form-grid{gap:8px}
 .recipe-edit-modal .field{gap:4px}
 .recipe-edit-modal .field input,.recipe-edit-modal .field select,.recipe-edit-modal .field textarea{padding:9px 10px}
@@ -577,6 +577,7 @@ let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
  mealHistory:[]
 };
 state.testRecipes=Array.isArray(state.testRecipes)?state.testRecipes:[];
+state.testRecipes.forEach(x=>{if(!Array.isArray(x.ingredients)&&typeof x.ingredients!=='string')x.ingredients=[];if(!x.preparation)x.preparation=x.steps||'';});
 const RECIPE_EMOJI_OPTIONS=[
    {id:'none',label:'Aucun (ne rien afficher)',emoji:'∅'},
    {id:'rice-cooker',label:'Cuiseur à riz',src:'recipe-emoji-rice-cooker.png'},
@@ -1895,20 +1896,92 @@ async function saveRecipe(editId){
   }
 }
 
+function getTestRecipeIngredients(item){
+  if(Array.isArray(item?.ingredients)){
+    return item.ingredients.map(v=>{
+      if(v&&typeof v==='object') return {text:String(v.text||v.name||'').trim(),shoppingId:v.shoppingId||v.link?.shoppingId||'',qty:Number(v.qty)||0,unit:v.unit||'pieces'};
+      return {text:String(v||'').trim(),shoppingId:'',qty:0,unit:'pieces'};
+    }).filter(v=>v.text);
+  }
+  return String(item?.ingredients||'').split('\n').map(x=>({text:x.trim(),shoppingId:'',qty:0,unit:'pieces'})).filter(v=>v.text);
+}
+function syncTestRecipeIngredientLinks(){
+  const rows=[...document.querySelectorAll('#testRecipeIngredientLinks .test-recipe-ingredient-row')];
+  window.testRecipeIngredientDraft=rows.map(row=>({
+    shoppingId:row.querySelector('.test-recipe-link-shop')?.value||'',
+    qty:Number(row.querySelector('.test-recipe-link-qty')?.value)||0,
+    unit:row.querySelector('.test-recipe-link-unit')?.value||'pieces'
+  }));
+}
+function testRecipeShoppingOptions(selected=''){
+  const cats=[...new Set((state.shoppingCategories||[]).concat((state.shopping||[]).map(x=>x.cat||'Autre')))];
+  return `<option value="">— Aucun lien —</option>`+cats.map(cat=>{
+    const items=(state.shopping||[]).filter(x=>String(x.cat||'Autre')===String(cat)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
+    return `<optgroup label="${esc(cat)}">${items.map(x=>`<option value="${esc(String(x.id))}" ${String(x.id)===String(selected)?'selected':''}>${esc(x.name)}</option>`).join('')}</optgroup>`;
+  }).join('');
+}
+function renderTestRecipeIngredientLinks(){
+  const box=document.getElementById('testRecipeIngredientLinks');if(!box)return;
+  syncTestRecipeIngredientLinks();
+  const ingredients=String(document.getElementById('trIngredients')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const draft=window.testRecipeIngredientDraft||[];
+  box.innerHTML=ingredients.length?ingredients.map((ingredient,i)=>{
+    const d=draft[i]||{};
+    const linked=(state.shopping||[]).find(x=>String(x.id)===String(d.shoppingId));
+    return `<div class="test-recipe-ingredient-row" data-index="${i}" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr) auto;gap:7px;align-items:center;margin-bottom:7px">
+      <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(ingredient)}">🥕 ${esc(ingredient)}</div>
+      <select class="test-recipe-link-shop" onchange="syncTestRecipeIngredientLinks()">${testRecipeShoppingOptions(d.shoppingId)}</select>
+      <button type="button" class="btn ghost mini" onclick="addTestIngredientToShopping(${i})">＋ Courses</button>
+      ${linked?`<div class="small" style="grid-column:2 / 4;color:var(--purple)">🔗 Lié à « ${esc(linked.name)} »</div>`:''}
+    </div>`;
+  }).join(''):'<div class="small">Ajoute un ingrédient par ligne pour pouvoir le relier à ta liste de courses.</div>';
+}
+function addTestIngredientToShopping(index){
+  syncTestRecipeIngredientLinks();
+  const ingredients=String(document.getElementById('trIngredients')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const name=ingredients[index];if(!name)return;
+  const existing=(state.shopping||[]).find(x=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());
+  const item=existing||{id:Date.now()+Math.floor(Math.random()*1000),name,cat:'Autre',qty:1,price:0,place:'Placard',keep:0,keepUnit:'jours',emoji:productEmoji(name),done:false};
+  if(!existing)state.shopping.push(item);
+  window.testRecipeIngredientDraft=window.testRecipeIngredientDraft||[];
+  window.testRecipeIngredientDraft[index]={...(window.testRecipeIngredientDraft[index]||{}),shoppingId:item.id};
+  save();
+  renderTestRecipeIngredientLinks();
+  toast(existing?`« ${name} » déjà dans la liste de courses ✓`:`« ${name} » ajouté aux courses et lié ✓`);
+}
 function openTestRecipeModal(id=null){
   const item=id?state.testRecipes.find(x=>x.id===Number(id)):null;
+  const ingredients=getTestRecipeIngredients(item);
+  window.testRecipeIngredientDraft=ingredients.map(x=>({shoppingId:x.shoppingId||'',qty:x.qty||0,unit:x.unit||'pieces'}));
   document.getElementById('modal').className='modal';
-  document.getElementById('modal').innerHTML=`<h2>🧪 ${item?'Modifier':'Nouvelle'} recette à tester</h2><div class="form-grid"><div class="field full"><label>Nom de la recette</label><input id="trName" value="${esc(item?.name||'')}" placeholder="Ex. Cookies pistache"></div><div class="field full"><label>🔗 Lien YouTube ou Instagram</label><input id="trLink" type="url" inputmode="url" value="${esc(item?.link||'')}" placeholder="Colle ici le lien YouTube ou Instagram…"><div class="small">Le lien sera cliquable pour ouvrir directement la vidéo.</div></div><div class="field full"><label>Notes</label><textarea id="trNotes" rows="4" placeholder="Ingrédients, remarques, modifications…">${esc(item?.notes||'')}</textarea></div></div><div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
+  document.getElementById('modal').innerHTML=`<h2>🧪 ${item?'Modifier':'Nouvelle'} recette à tester</h2>
+  <div class="form-grid">
+    <div class="field full"><label>Nom de la recette</label><input id="trName" value="${esc(item?.name||'')}" placeholder="Ex. Cookies pistache"></div>
+    <div class="field full"><label>🔗 Lien YouTube ou Instagram</label><input id="trLink" type="url" inputmode="url" value="${esc(item?.link||'')}" placeholder="Colle ici le lien YouTube ou Instagram…"><div class="small">Le lien sera cliquable pour ouvrir directement la vidéo.</div></div>
+    <div class="field full"><label>🥕 Ingrédients</label><textarea id="trIngredients" rows="6" placeholder="1 œuf&#10;100 g de farine&#10;50 g de sucre" oninput="renderTestRecipeIngredientLinks()">${esc(ingredients.map(x=>x.text).join('\n'))}</textarea>
+      <div class="small" style="margin:6px 0">Un ingrédient par ligne. Tu peux ensuite le relier à un article déjà présent dans « Courses » ou l’y ajouter.</div>
+      <div id="testRecipeIngredientLinks"></div>
+    </div>
+    <div class="field full"><label>👩‍🍳 Préparation</label><textarea id="trPreparation" rows="7" placeholder="1. Mélanger…&#10;2. Cuire…">${esc(item?.preparation||item?.steps||'')}</textarea></div>
+    <div class="field full"><label>Notes</label><textarea id="trNotes" rows="3" placeholder="Remarques, modifications, idées…">${esc(item?.notes||'')}</textarea></div>
+  </div>
+  <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
   showModal();
+  renderTestRecipeIngredientLinks();
 }
 function saveTestRecipe(id){
+  syncTestRecipeIngredientLinks();
   const name=document.getElementById('trName').value.trim();
   const link=document.getElementById('trLink').value.trim();
+  const ingredientTexts=String(document.getElementById('trIngredients').value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const draft=window.testRecipeIngredientDraft||[];
+  const ingredients=ingredientTexts.map((text,i)=>({text,shoppingId:draft[i]?.shoppingId||'',qty:Number(draft[i]?.qty)||0,unit:draft[i]?.unit||'pieces'}));
+  const preparation=document.getElementById('trPreparation').value.trim();
   const notes=document.getElementById('trNotes').value.trim();
   if(!name)return toast('Indique un nom');
   if(link && !/^https?:\/\//i.test(link))return toast('Colle un lien complet (https://…)');
-  if(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(x)Object.assign(x,{name,link,notes});}
-  else state.testRecipes.unshift({id:Date.now(),name,link,notes,done:false});
+  if(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(x)Object.assign(x,{name,link,ingredients,preparation,notes});}
+  else state.testRecipes.unshift({id:Date.now(),name,link,ingredients,preparation,notes,done:false});
   save();closeModal();renderTestRecipes();toast(id?'Recette à tester modifiée ✨':'Recette à tester ajoutée');
 }
 function deleteTestRecipe(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(!x)return;if(!confirm(`Supprimer « ${x.name} » ?`))return;state.testRecipes=state.testRecipes.filter(r=>r.id!==Number(id));save();renderTestRecipes();toast('Recette supprimée');}
@@ -1917,8 +1990,20 @@ function toggleTestRecipeDone(id){const x=state.testRecipes.find(r=>r.id===Numbe
 function renderTestRecipes(){
   const grid=document.getElementById('testRecipeGrid');if(!grid)return;
   const q=(document.getElementById('testRecipeSearch')?.value||'').toLowerCase().trim();
-  const list=state.testRecipes.filter(x=>!q||String(x.name||'').toLowerCase().includes(q)||String(x.link||'').toLowerCase().includes(q));
-  grid.innerHTML=list.length?list.map(x=>`<article class="card clickable" style="padding:16px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;align-items:flex-start;gap:10px"><input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px"><div style="flex:1;min-width:0"><h3 style="margin:0 0 4px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3>${x.notes?`<div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div>`:''}</div></div>${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Ouvrir sur YouTube / Instagram</a><button class="btn ghost" onclick="copyTestRecipeLink(${x.id})">📋 Copier le lien</button>`:`<div class="small">Aucun lien vidéo ajouté.</div>`}<div class="actions" style="margin-top:0"><button class="btn ghost mini" onclick="openTestRecipeModal(${x.id})">✏️ Modifier</button><button class="btn ghost mini" onclick="deleteTestRecipe(${x.id})">🗑️ Supprimer</button></div></article>`).join(''):'<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';
+  const list=state.testRecipes.filter(x=>!q||String(x.name||'').toLowerCase().includes(q)||String(x.link||'').toLowerCase().includes(q)||getTestRecipeIngredients(x).some(i=>i.text.toLowerCase().includes(q)));
+  grid.innerHTML=list.length?list.map(x=>{
+    const ingredients=getTestRecipeIngredients(x);
+    const linked=ingredients.filter(i=>i.shoppingId).map(i=>(state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))).filter(Boolean);
+    return `<article class="card clickable" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:flex-start;gap:10px"><input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px"><div style="flex:1;min-width:0"><h3 style="margin:0 0 4px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3></div></div>
+      ${ingredients.length?`<div><h4 style="margin:2px 0 5px">🥕 Ingrédients</h4><div class="small" style="display:flex;flex-direction:column;gap:3px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
+      ${x.preparation||x.steps?`<div><h4 style="margin:2px 0 5px">👩‍🍳 Préparation</h4><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(x.preparation||x.steps)}</div></div>`:''}
+      ${x.notes?`<div><h4 style="margin:2px 0 5px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}
+      ${linked.length?`<div class="small" style="color:var(--purple)">🛒 ${linked.length} ingrédient${linked.length>1?'s':''} lié${linked.length>1?'s':''} à la liste de courses.</div>`:''}
+      ${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Ouvrir sur YouTube / Instagram</a><button class="btn ghost" onclick="copyTestRecipeLink(${x.id})">📋 Copier le lien</button>`:`<div class="small">Aucun lien vidéo ajouté.</div>`}
+      <div class="actions" style="margin-top:0"><button class="btn ghost mini" onclick="openTestRecipeModal(${x.id})">✏️ Modifier</button><button class="btn ghost mini" onclick="deleteTestRecipe(${x.id})">🗑️ Supprimer</button></div>
+    </article>`;
+  }).join(''):'<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';
 }
 
 function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><h3 style="margin:10px 0 6px">🍽️ Historique des repas</h3><div id="mealHistorySettings"></div><h3 style="margin:10px 0 6px">📖 Catégories des recettes</h3><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter</button></div><h3 style="margin:10px 0 6px">🛒 Catégories des courses</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage dans Liste de courses.</div><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin:8px 8px 0 0" onclick="exportData()">Exporter toutes mes données</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('importDataInput').click()">Importer mes données</button><input id="importDataInput" type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"><div class="small" style="margin-top:8px">La sauvegarde inclut aussi les photos des recettes, du stock et de l’agenda.</div><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderCategorySettings();renderMealHistorySettings()}
