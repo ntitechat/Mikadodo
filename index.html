@@ -84,6 +84,9 @@
   .test-recipe-card h3{font-size:1.05em}
 }
 
+
+.recipe-emoji-placeholder{width:100%;height:160px;display:flex;align-items:center;justify-content:center;font-size:64px;border-radius:12px}
+
 </style>
 
 <style>
@@ -1369,7 +1372,7 @@ function renderBreakfastRecipes(){
       :`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=breakfastCookableMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:recipeEmojiMarkup(r,'recipe-emoji-card')}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
 
   updateBreakfastCookableRecipesButton();
@@ -1445,7 +1448,7 @@ function renderRecipes(){
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=cookableRecipesMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:recipeEmojiMarkup(r,'recipe-emoji-card')}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
   updateCookableRecipesButton();
@@ -2166,7 +2169,7 @@ function openTestRecipeAgenda(id){
   document.getElementById('modal').className='modal';
   document.getElementById('modal').innerHTML=`<h2>📅 Mettre dans l’agenda</h2>
   <div class="small" style="margin-bottom:10px"><strong>${esc(x.name)}</strong></div>
-  ${x.image?`<img src="${esc(x.image)}" alt="" style="display:block;width:100%;max-height:150px;object-fit:cover;border-radius:12px;margin-bottom:10px">`:''}
+  ${x.image?`<img src="${esc(x.image)}" alt="" style="display:block;width:100%;max-height:150px;object-fit:cover;border-radius:12px;margin-bottom:10px">`:`<div class="recipe-emoji-placeholder">${esc(x.emoji||'🍽️')}</div>`}
   <div class="form-grid">
     <div class="field"><label>Date</label><input id="trAd" type="date" value="${today}"></div>
     <div class="field"><label>Moment</label><select id="trAm" onchange="syncTestAgendaTime()"><option>Matin</option><option>Midi</option><option selected>Soir</option></select></div>
@@ -2239,7 +2242,7 @@ function renderTestRecipes(){
 
           </div>
         </div>
-        ${x.image?`<img class="test-recipe-card-image" src="${esc(x.image)}" alt="" loading="lazy">`:''}
+        ${x.image?`<img class="test-recipe-card-image" src="${esc(x.image)}" alt="" loading="lazy">`:`<div class="recipe-emoji-placeholder">${esc(x.emoji||'🍽️')}</div>`}
       </div>
     </article>`;
   }).join(''):'<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';
