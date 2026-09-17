@@ -2098,6 +2098,27 @@ function addTestIngredientToShopping(index){
   renderTestRecipeIngredientLinks();
   toast(existing?`« ${name} » déjà dans la liste de courses ✓`:`« ${name} » ajouté aux courses et lié ✓`);
 }
+function openTestRecipeDetails(id){
+  const item=state.testRecipes.find(x=>x.id===Number(id));
+  if(!item)return;
+  const ingredients=getTestRecipeIngredients(item);
+  const preparation=item.preparation||item.steps||'';
+  document.getElementById('modal').className='modal recipe-detail-modal';
+  document.getElementById('modal').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+    <h2 style="margin:0">🧪 ${esc(item.name||'Recette')}</h2>
+    <button class="btn purple mini" type="button" onclick="openTestRecipeModal(${item.id})">✏️ Modifier</button>
+  </div>
+  ${item.image?`<img src="${esc(item.image)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin-bottom:12px">`:''}
+  ${ingredients.length?`<section><h3>🥕 Ingrédients</h3><div class="small" style="display:flex;flex-direction:column;gap:4px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></section>`:`<section><h3>🥕 Ingrédients</h3><div class="small">Aucun ingrédient renseigné.</div></section>`}
+  <section><h3>👩‍🍳 Préparation</h3>${preparation?`<div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(preparation)}</div>`:`<div class="small">Aucune préparation renseignée.</div>`}</section>
+  ${item.notes?`<section><h3>📝 Notes</h3><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(item.notes)}</div></section>`:''}
+  <div class="actions" style="margin-top:14px;justify-content:flex-start;gap:6px;flex-wrap:wrap">
+    ${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo</a><button class="btn ghost mini" onclick="copyTestRecipeLink(${item.id})">📋 Copier</button>`:''}
+    <button class="btn ghost" type="button" onclick="closeModal()">Fermer</button>
+  </div>`;
+  showModal();
+}
+
 function openTestRecipeModal(id=null){
   const item=id?state.testRecipes.find(x=>x.id===Number(id)):null;
   window.editingTestRecipeId=item?.id||null;
@@ -2152,7 +2173,7 @@ function openTestRecipeAgenda(id){
     <div class="field"><label>Heure du repas</label><input id="trAt" type="time" value="${momentDefaultTime('Soir')}"></div>
     <div class="field"><label>Temps de préparation (min)</label><input id="trAdu" type="number" min="0" value="50"></div>
   </div>
-  <div class="actions"><button class="btn ghost" onclick="openTestRecipeModal(${x.id})">Annuler</button><button class="btn purple" onclick="saveTestRecipeAgenda(${x.id})">📅 Programmer</button></div>`;
+  <div class="actions"><button class="btn ghost" onclick="openTestRecipeDetails(${x.id})">Annuler</button><button class="btn purple" onclick="saveTestRecipeAgenda(${x.id})">📅 Programmer</button></div>`;
   showModal();
 }
 function syncTestAgendaTime(){
@@ -2210,8 +2231,6 @@ function renderTestRecipes(){
             <input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px;flex:0 0 auto">
             <div style="flex:1;min-width:0">
               <h3 style="margin:0 0 5px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3>
-              ${ingredients.length?`<div><h4 style="margin:2px 0 4px">🥕 Ingrédients</h4><div class="small" style="display:flex;flex-direction:column;gap:2px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
-              ${x.preparation||x.steps?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">👩‍🍳 Préparation</h4><div class="small" style="white-space:pre-wrap;line-height:1.4">${esc(x.preparation||x.steps)}</div></div>`:''}
               ${x.notes?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}
             </div>
           </div>
