@@ -2098,6 +2098,21 @@ function addTestIngredientToShopping(index){
   renderTestRecipeIngredientLinks();
   toast(existing?`« ${name} » déjà dans la liste de courses ✓`:`« ${name} » ajouté aux courses et lié ✓`);
 }
+function openTestRecipeDetails(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id));
+  if(!item)return;
+  const ingredients=getTestRecipeIngredients(item);
+  document.getElementById('modal').className='modal recipe-edit-modal';
+  document.getElementById('modal').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px"><h2 style="margin:0">🧪 ${esc(item.name)}</h2><button class="btn purple" type="button" onclick="openTestRecipeModal(${item.id})">✏️ Modifier</button></div>
+  ${item.image?`<img src="${esc(item.image)}" alt="Image de ${esc(item.name)}" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-bottom:12px">`:''}
+  ${item.link?`<div class="actions" style="margin:0 0 12px;gap:6px;flex-wrap:wrap"><a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo</a><button class="btn ghost mini" type="button" onclick="copyTestRecipeLink(${item.id})">📋 Copier</button></div>`:''}
+  ${ingredients.length?`<div style="margin-top:8px"><h3 style="margin:6px 0">🥕 Ingrédients</h3><div class="small" style="display:flex;flex-direction:column;gap:4px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
+  ${item.preparation||item.steps?`<div style="margin-top:14px"><h3 style="margin:6px 0">👩‍🍳 Préparation</h3><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(item.preparation||item.steps)}</div></div>`:''}
+  ${item.notes?`<div style="margin-top:14px"><h3 style="margin:6px 0">📝 Notes</h3><div class="small" style="white-space:pre-wrap">${esc(item.notes)}</div></div>`:''}
+  <div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;
+  showModal();
+}
+
 function openTestRecipeModal(id=null){
   const item=id?state.testRecipes.find(x=>x.id===Number(id)):null;
   window.editingTestRecipeId=item?.id||null;
@@ -2202,22 +2217,17 @@ function renderTestRecipes(){
   const q=(document.getElementById('testRecipeSearch')?.value||'').toLowerCase().trim();
   const list=state.testRecipes.filter(x=>!q||String(x.name||'').toLowerCase().includes(q)||String(x.link||'').toLowerCase().includes(q)||getTestRecipeIngredients(x).some(i=>i.text.toLowerCase().includes(q)));
   grid.innerHTML=list.length?list.map(x=>{
-    const ingredients=getTestRecipeIngredients(x);
-    return `<article class="card clickable test-recipe-card" style="padding:12px;cursor:pointer" onclick="openTestRecipeModal(${x.id})">
+    return `<article class="card clickable test-recipe-card" style="padding:12px;cursor:pointer" onclick="openTestRecipeDetails(${x.id})">
       <div class="test-recipe-card-layout">
         <div class="test-recipe-card-info">
           <div style="display:flex;align-items:flex-start;gap:9px">
             <input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px;flex:0 0 auto">
             <div style="flex:1;min-width:0">
               <h3 style="margin:0 0 5px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3>
-              ${ingredients.length?`<div><h4 style="margin:2px 0 4px">🥕 Ingrédients</h4><div class="small" style="display:flex;flex-direction:column;gap:2px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
-              ${x.preparation||x.steps?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">👩‍🍳 Préparation</h4><div class="small" style="white-space:pre-wrap;line-height:1.4">${esc(x.preparation||x.steps)}</div></div>`:''}
-              ${x.notes?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}
             </div>
           </div>
           <div class="actions" style="margin-top:8px;gap:6px;flex-wrap:wrap">
             ${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo</a><button class="btn ghost mini" onclick="event.stopPropagation();copyTestRecipeLink(${x.id})">📋 Copier</button>`:''}
-
           </div>
         </div>
         ${x.image?`<img class="test-recipe-card-image" src="${esc(x.image)}" alt="" loading="lazy">`:''}
