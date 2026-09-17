@@ -2045,9 +2045,15 @@ function openTestRecipeModal(id=null){
   const item=id?state.testRecipes.find(x=>x.id===Number(id)):null;
   window.editingTestRecipeId=item?.id||null;
   window.testRecipeIngredientDraft=null;
+  window.testRecipeImageDraft=item?.image||'';
   document.getElementById('modal').className='modal recipe-edit-modal';
   document.getElementById('modal').innerHTML=`<h2>🧪 ${item?'Modifier':'Nouvelle'} recette à tester</h2>
   <div class="form-grid">
+    <div class="field full"><label>🖼️ Image de la recette</label>
+      <input id="trImage" type="file" accept="image/*" onchange="previewTestRecipeImage(this)">
+      <div id="trImagePreview" style="margin-top:8px"></div>
+      <div class="small">Ajoute une photo de la recette depuis ton téléphone ou ton ordinateur.</div>
+    </div>
     <div class="field full"><label>Nom</label><input id="trName" value="${esc(item?.name||'')}" placeholder="Ex. Cookies pistache"></div>
     <div class="field full"><label>🔗 Lien YouTube ou Instagram</label><input id="trLink" type="url" inputmode="url" value="${esc(item?.link||'')}" placeholder="Colle ici le lien de la vidéo…"><div class="small">Le lien sera cliquable pour ouvrir directement la vidéo.</div></div>
     <div class="field full"><label>🥕 Ingrédients (1 par ligne)</label><textarea id="trIngredients" rows="6" placeholder="1 œuf&#10;100 g de farine&#10;50 g de sucre" oninput="renderTestRecipeIngredientLinks()">${esc(getTestRecipeIngredients(item).map(x=>x.text).join('\n'))}</textarea><div id="testRecipeIngredientLinks"></div></div>
@@ -2056,7 +2062,24 @@ function openTestRecipeModal(id=null){
   </div>
   <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
   showModal();
+  const oldImg=document.getElementById('trImagePreview');
+  if(oldImg && item?.image) oldImg.innerHTML=`<img src="${esc(item.image)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`;
   renderTestRecipeIngredientLinks();
+}
+
+function previewTestRecipeImage(input){
+  const file=input?.files?.[0], box=document.getElementById('trImagePreview');
+  if(!file||!box)return;
+  if(!file.type.startsWith('image/')){input.value='';return toast('Choisis une image.');}
+  if(file.size>4*1024*1024){input.value='';return toast('Image trop lourde (4 Mo maximum).');}
+  const reader=new FileReader();
+  reader.onload=()=>{window.testRecipeImageDraft=reader.result;box.innerHTML=`<img src="${reader.result}" alt="Aperçu" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`};
+  reader.readAsDataURL(file);
+}
+function removeTestRecipeImage(){
+  window.testRecipeImageDraft='';
+  const input=document.getElementById('trImage');if(input)input.value='';
+  const box=document.getElementById('trImagePreview');if(box)box.innerHTML='';
 }
 function saveTestRecipe(id){
   const name=document.getElementById('trName').value.trim();
@@ -2069,10 +2092,11 @@ function saveTestRecipe(id){
   });
   const preparation=document.getElementById('trPreparation').value.trim();
   const notes=document.getElementById('trNotes').value.trim();
+  const image=window.testRecipeImageDraft!==undefined?window.testRecipeImageDraft:(id?state.testRecipes.find(r=>r.id===Number(id))?.image||'':'');
   if(!name)return toast('Indique un nom');
   if(link && !/^https?:\/\//i.test(link))return toast('Colle un lien complet (https://…)');
-  if(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(x)Object.assign(x,{name,link,ingredients,preparation,notes});}
-  else state.testRecipes.unshift({id:Date.now(),name,link,ingredients,preparation,notes,done:false});
+  if(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(x)Object.assign(x,{name,link,ingredients,preparation,notes,image});}
+  else state.testRecipes.unshift({id:Date.now(),name,link,ingredients,preparation,notes,image,done:false});
   save();closeModal();window.editingTestRecipeId=null;renderTestRecipes();toast(id?'Recette à tester modifiée ✨':'Recette à tester ajoutée');
 }
 function deleteTestRecipe(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(!x)return;if(!confirm(`Supprimer « ${x.name} » ?`))return;state.testRecipes=state.testRecipes.filter(r=>r.id!==Number(id));save();renderTestRecipes();toast('Recette supprimée');}
@@ -2085,14 +2109,14 @@ function renderTestRecipes(){
   grid.innerHTML=list.length?list.map(x=>{
     const ingredients=getTestRecipeIngredients(x);
     const linked=ingredients.filter(i=>i.shoppingId).map(i=>(state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))).filter(Boolean);
-    return `<article class="card clickable" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+    return `<article class="card clickable" style="padding:16px;display:flex;flex-direction:column;gap:10px;cursor:pointer" onclick="openTestRecipeModal(${x.id})">
+      ${x.image?`<img src="${esc(x.image)}" alt="Image de ${esc(x.name)}" style="width:100%;height:180px;object-fit:cover;border-radius:12px">`:''}
       <div style="display:flex;align-items:flex-start;gap:10px"><input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px"><div style="flex:1;min-width:0"><h3 style="margin:0 0 4px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3></div></div>
       ${ingredients.length?`<div><h4 style="margin:2px 0 5px">🥕 Ingrédients</h4><div class="small" style="display:flex;flex-direction:column;gap:3px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
       ${x.preparation||x.steps?`<div><h4 style="margin:2px 0 5px">👩‍🍳 Préparation</h4><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(x.preparation||x.steps)}</div></div>`:''}
       ${x.notes?`<div><h4 style="margin:2px 0 5px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}
-      ${linked.length?`<div class="small" style="color:var(--purple)">🛒 ${linked.length} ingrédient${linked.length>1?'s':''} lié${linked.length>1?'s':''} à la liste de courses.</div>`:''}
-      ${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Ouvrir sur YouTube / Instagram</a><button class="btn ghost" onclick="copyTestRecipeLink(${x.id})">📋 Copier le lien</button>`:`<div class="small">Aucun lien vidéo ajouté.</div>`}
-      <div class="actions" style="margin-top:0"><button class="btn ghost mini" onclick="openTestRecipeModal(${x.id})">✏️ Modifier</button><button class="btn ghost mini" onclick="deleteTestRecipe(${x.id})">🗑️ Supprimer</button></div>
+      ${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Ouvrir sur YouTube / Instagram</a><button class="btn ghost" onclick="event.stopPropagation();copyTestRecipeLink(${x.id})">📋 Copier le lien</button>`:`<div class="small">Aucun lien vidéo ajouté.</div>`}
+      <div class="actions" style="margin-top:0"><button class="btn ghost mini" onclick="event.stopPropagation();deleteTestRecipe(${x.id})">🗑️ Supprimer</button></div>
     </article>`;
   }).join(''):'<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';
 }
