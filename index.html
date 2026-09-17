@@ -683,23 +683,41 @@ async function readPhotoFromDb(db,key){
 }
 async function recoverPhotoByKey(key){
   try{
+    const safe=String(key).replace(/[^A-Za-z0-9._-]/g,'_');
+    const files=['jpg','jpeg','png','webp','gif','avif'];
+    for(const ext of files){
+      try{
+        const r=await fetch(`photo-recovery/${safe}.${ext}`,{cache:'force-cache'});
+        if(r.ok){
+          const blob=await r.blob();
+          return await new Promise(res=>{
+            const reader=new FileReader();
+            reader.onload=()=>res(reader.result||'');
+            reader.onerror=()=>res('');
+            reader.readAsDataURL(blob);
+          });
+        }
+      }catch(e){}
+    }
+  }catch(e){}
+  try{
     if(indexedDB.databases){
       const dbs=await indexedDB.databases();
       for(const info of dbs){
         if(!info?.name)continue;
-        try{const db=await new Promise((res,rej)=>{const r=indexedDB.open(info.name);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});const photo=await readPhotoFromDb(db,key);db.close();if(photo)return photo;}catch(e){}
+        try{
+          const db=await new Promise((res,rej)=>{const r=indexedDB.open(info.name);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+          const photo=await readPhotoFromDb(db,key);
+          db.close();
+          if(photo)return photo;
+        }catch(e){}
       }
     }
   }catch(e){}
-  // Anciennes versions pouvaient conserver les photos directement dans localStorage.
   try{
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i),v=localStorage.getItem(k)||'';
       if(v.startsWith('data:image/') && (k===key || k.includes(key)))return v;
-      if(v.includes('data:image/')){
-        const m=v.match(/data:image\/(?:png|jpe?g|webp|gif|avif);base64,[A-Za-z0-9+/=]+/);
-        if(m)return m[0];
-      }
     }
   }catch(e){}
   return '';
@@ -724,8 +742,34 @@ async function getPhoto(ref){
 }
 function photoSrc(ref){return ref&&photoCache[ref]?photoCache[ref]:''}
 async function migratePhotoField(obj,field){let v=obj?.[field];if(typeof v==='string'&&v.startsWith('data:image/')){obj[field]=await putPhoto(v)}else if(Array.isArray(v)){obj[field]=[];for(const item of v)obj[field].push(typeof item==='string'&&item.startsWith('data:image/')?await putPhoto(item):item)}}
-async function initPhotoStorage(){try{await requestDurablePhotoStorage();await photoDB();
-for(const r of state.recipes){await migratePhotoField(r,'photos');if(typeof r.photo==='string'&&r.photo.startsWith('data:image/'))r.photo=await putPhoto(r.photo);if(!r.photos?.length&&r.photo)r.photos=[r.photo];if(r.photos?.length)r.photo=r.photos[0]}for(const x of state.stock)await migratePhotoField(x,'photo');for(const x of state.agenda)await migratePhotoField(x,'photo');save()}catch(e){console.warn('Stockage photos indisponible',e)}}
+async function initPhotoStorage(){
+  try{
+    await requestDurablePhotoStorage();
+    await photoDB();
+    for(const r of state.recipes){
+      await migratePhotoField(r,'photos');
+      if(typeof r.photo==='string'&&r.photo.startsWith('data:image/'))r.photo=await putPhoto(r.photo);
+      if(!r.photos?.length&&r.photo)r.photos=[r.photo];
+      if(r.photos?.length)r.photo=r.photos[0];
+    }
+    for(const x of state.stock)await migratePhotoField(x,'photo');
+    for(const x of state.agenda)await migratePhotoField(x,'photo');
+    save();
+  }catch(e){console.warn('Stockage photos indisponible',e)}
+}
+async function warmPhotoCache(){
+  const refs=[];
+  const add=v=>{if(typeof v==='string'&&v.startsWith('idb:')&&!photoCache[v])refs.push(v)};
+  for(const r of state.recipes||[])for(const ref of (r.photos||[]))add(ref);
+  for(const x of state.stock||[])add(x.photo);
+  for(const x of state.agenda||[])add(x.photo);
+  // Load in small batches after the interface is already visible.
+  for(let i=0;i<refs.length;i+=4){
+    await Promise.all(refs.slice(i,i+4).map(getPhoto));
+    if(i%16===0)renderCurrentView();
+  }
+  renderCurrentView();
+}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function recipeMoney(n){let v=Number(n)||0;return (Number.isInteger(v)?String(v):v.toFixed(2).replace(/0+$/,'').replace(/\.$/, '').replace('.',','))+'€'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 let currentView='recipes';
 let navigationReady=false;
@@ -2301,14 +2345,14 @@ function scheduleNotificationCheck(){
   });
   if(next<Infinity)notificationTimer=setTimeout(()=>{checkNotifications().finally(scheduleNotificationCheck)},Math.max(1000,next-now));
 }
-setInterval(()=>{if(syncStockExpiryAgenda()){renderAgenda();updateReminder()}renderStock();checkNotifications();scheduleNotificationCheck()},30000);
+setInterval(()=>{if(syncStockExpiryAgenda()){renderAgenda();updateReminder()}renderStock();checkNotifications();scheduleNotificationCheck()},5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkNotifications();scheduleNotificationCheck()}});
 window.addEventListener('focus',()=>{checkNotifications();scheduleNotificationCheck()});
 if('serviceWorker'in navigator){
   navigator.serviceWorker.register('sw.js').then(reg=>reg.update()).catch(()=>{});
 }
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='restart-cooking-timer'){try{const x=JSON.parse(localStorage.getItem('mikadodo-cooking-timer')||'null');if(x&&x.minutes)startCookingTimer(x.minutes,encodeURIComponent(x.name||''));}catch(err){}}});
-initPhotoStorage().then(()=>{renderAll();restoreBackgroundTimer()});
+initPhotoStorage().then(()=>{renderAll();restoreBackgroundTimer();setTimeout(()=>warmPhotoCache().catch(()=>{}),100)});
 checkNotifications();
 scheduleNotificationCheck();
 </script>
