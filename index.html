@@ -71,33 +71,17 @@
 @media(max-width:600px){.recipe-search-clear{right:10px!important}}
 
 
-/* Recettes à tester : image compacte à droite, informations à gauche */
-.test-recipe-card-layout{
-  display:flex!important;
-  align-items:flex-start;
-  gap:14px;
-}
-.test-recipe-card-info{
-  flex:1 1 auto;
-  min-width:0;
-}
-.test-recipe-card-image{
-  flex:0 0 110px;
-  width:110px;
-  max-width:110px;
-  height:90px;
-  object-fit:cover;
-  border-radius:10px;
-  margin:0!important;
-}
-@media (max-width:600px){
-  .test-recipe-card-layout{gap:10px;}
-  .test-recipe-card-image{
-    flex-basis:82px;
-    width:82px;
-    max-width:82px;
-    height:70px;
-  }
+/* Recettes à tester : carte compacte, contenu à gauche et image à droite */
+.test-recipe-card-layout{display:flex!important;align-items:flex-start;gap:10px;min-width:0}
+.test-recipe-card-info{flex:1 1 auto;min-width:0}
+.test-recipe-card-image{flex:0 0 88px;width:88px;max-width:88px;height:88px;object-fit:cover;border-radius:10px;margin:0!important;order:2}
+.test-recipe-card .small{font-size:.92em}
+.test-recipe-card .actions{justify-content:flex-start}
+@media(max-width:600px){
+  .test-recipe-card{padding:10px!important}
+  .test-recipe-card-layout{gap:8px}
+  .test-recipe-card-image{flex-basis:76px;width:76px;max-width:76px;height:76px}
+  .test-recipe-card h3{font-size:1.05em}
 }
 
 </style>
@@ -1722,9 +1706,16 @@ function syncMomentTime(){let am=document.getElementById('am'),at=document.getEl
 function syncNotificationToAdvice(){}
 function syncAgendaNotify(){syncAgendaAdvice()}
 function saveAgenda(){let r=state.recipes.find(x=>x.id==document.getElementById('ar').value);let time=normalizeTime(document.getElementById('at').value),duration=Number(document.getElementById('adu').value)||0,advisedTime=normalizeTime(document.getElementById('ast').value,startTime(time,duration));state.agenda.push({id:Date.now(),recipeId:r.id,name:r.name,date:document.getElementById('ad').value,moment:document.getElementById('am').value,time,duration,advisedTime,notifyTime:advisedTime,photo:(r.photos?.[0]||r.photo||'')});save();closeModal();renderAgenda();updateReminder();toast('Repas programmé')}
-async function openAgendaEdit(id){let x=state.agenda.find(a=>a.id===id);if(!x)return;let selectedRecipe=state.recipes.find(r=>r.id===x.recipeId)||state.recipes.find(r=>r.name===x.name);let recipeImageRef=selectedRecipe?.photos?.[0]||selectedRecipe?.photo||selectedRecipe?.image||x.photo||'';let recipeImage=await getPhoto(recipeImageRef);let opts=state.recipes.map(r=>`<option value="${r.id}" ${x.recipeId===r.id||x.name===r.name?'selected':''}>${esc(r.name)}</option>`).join('');let advised=normalizeTime(x.advisedTime||x.notifyTime||startTime(x.time,x.duration));document.getElementById('modal').className='modal agenda-edit-modal';document.getElementById('modal').innerHTML=`<button class="modal-close-x" onclick="closeModal()" aria-label="Annuler" title="Annuler">×</button><h2>✏️ Modifier le repas</h2>${recipeImage ? `<img src="${recipeImage}" alt="${selectedRecipe?.name || x.name || 'Recette'}" class="agenda-recipe-image">` : ''}<div class="form-grid"><div class="field full"><label>Recette</label><select id="ar" onchange="updateAgendaDuration()">${opts}</select></div><div class="field"><label>Date</label><input id="ad" type="date" value="${x.date}"></div><div class="field"><label>Moment</label><select id="am" onchange="syncMomentTime()"><option ${x.moment==='Matin'?'selected':''}>Matin</option><option ${x.moment==='Midi'?'selected':''}>Midi</option><option ${x.moment==='Soir'?'selected':''}>Soir</option></select></div><div class="field"><label>Heure du repas</label><input id="at" type="time" value="${x.time}" onchange="syncAgendaAdvice()"></div><div class="field"><label>Heure conseillée 🔔 notification</label><input id="ast" type="time" value="${advised}" onchange="syncNotificationToAdvice()"></div><div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn purple" style="width:100%" onclick="openAgendaRecipe(${x.id})">recette</button></div><div class="field"><label>Temps de préparation (min)</label><input id="adu" type="number" value="${x.duration}" onchange="syncAgendaAdvice()"></div></div><p class="small">L’heure conseillée est calculée automatiquement, mais tu peux la modifier manuellement.</p><div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn purple" onclick="openAgendaRecipe(${x.id})">📖 Recette</button><button class="btn ghost" onclick="returnAgendaToStock(${x.id})">↩️ Remettre au stock</button><button class="btn danger" style="background:var(--danger)" onclick="removeAgenda(${x.id})">Supprimer</button><button class="btn" onclick="saveAgendaEdit(${x.id})">Enregistrer</button></div>`;showModal()}
+async function openAgendaEdit(id){let x=state.agenda.find(a=>a.id===id);if(!x)return;let selectedRecipe=state.recipes.find(r=>r.id===x.recipeId)||state.recipes.find(r=>r.name===x.name);let selectedTestRecipe=state.testRecipes?.find(r=>Number(r.id)===Number(x.testRecipeId));let recipeImageRef=selectedRecipe?.photos?.[0]||selectedRecipe?.photo||selectedRecipe?.image||x.photo||'';let recipeImage=await getPhoto(recipeImageRef);let opts=state.recipes.map(r=>`<option value="${r.id}" ${x.recipeId===r.id||x.name===r.name?'selected':''}>${esc(r.name)}</option>`).join('');if(selectedTestRecipe)opts+=`<option value="test:${selectedTestRecipe.id}" selected>🧪 ${esc(selectedTestRecipe.name)}</option>`;let advised=normalizeTime(x.advisedTime||x.notifyTime||startTime(x.time,x.duration));document.getElementById('modal').className='modal agenda-edit-modal';document.getElementById('modal').innerHTML=`<button class="modal-close-x" onclick="closeModal()" aria-label="Annuler" title="Annuler">×</button><h2>✏️ Modifier le repas</h2>${recipeImage ? `<img src="${recipeImage}" alt="${selectedRecipe?.name || x.name || 'Recette'}" class="agenda-recipe-image">` : ''}<div class="form-grid"><div class="field full"><label>Recette</label><select id="ar" onchange="updateAgendaDuration()">${opts}</select></div><div class="field"><label>Date</label><input id="ad" type="date" value="${x.date}"></div><div class="field"><label>Moment</label><select id="am" onchange="syncMomentTime()"><option ${x.moment==='Matin'?'selected':''}>Matin</option><option ${x.moment==='Midi'?'selected':''}>Midi</option><option ${x.moment==='Soir'?'selected':''}>Soir</option></select></div><div class="field"><label>Heure du repas</label><input id="at" type="time" value="${x.time}" onchange="syncAgendaAdvice()"></div><div class="field"><label>Heure conseillée 🔔 notification</label><input id="ast" type="time" value="${advised}" onchange="syncNotificationToAdvice()"></div><div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn purple" style="width:100%" onclick="openAgendaRecipe(${x.id})">recette</button></div><div class="field"><label>Temps de préparation (min)</label><input id="adu" type="number" value="${x.duration}" onchange="syncAgendaAdvice()"></div></div><p class="small">L’heure conseillée est calculée automatiquement, mais tu peux la modifier manuellement.</p><div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn purple" onclick="openAgendaRecipe(${x.id})">📖 Recette</button><button class="btn ghost" onclick="returnAgendaToStock(${x.id})">↩️ Remettre au stock</button><button class="btn danger" style="background:var(--danger)" onclick="removeAgenda(${x.id})">Supprimer</button><button class="btn" onclick="saveAgendaEdit(${x.id})">Enregistrer</button></div>`;showModal()}
 function openAgendaRecipe(id){let x=state.agenda.find(a=>a.id===id);if(!x)return;let r=state.recipes.find(r=>Number(r.id)===Number(x.recipeId))||state.recipes.find(r=>sameFood(String(r.name||''),String(x.name||'')));if(!r){toast('Aucune recette associée à ce repas');return}openRecipe(r.id)}
-function saveAgendaEdit(id){let x=state.agenda.find(a=>a.id===id);if(!x)return;let r=state.recipes.find(r=>r.id==document.getElementById('ar').value);if(!r)return;x.recipeId=r.id;x.name=r.name;x.date=document.getElementById('ad').value;x.moment=document.getElementById('am').value;x.time=normalizeTime(document.getElementById('at').value,x.time);x.duration=Number(document.getElementById('adu').value)||0;x.advisedTime=normalizeTime(document.getElementById('ast').value,startTime(x.time,x.duration));x.notifyTime=x.advisedTime;x.photo=(r.photos?.[0]||r.photo||'');save();closeModal();renderAgenda();updateReminder();toast('Repas modifié ✨')}
+function saveAgendaEdit(id){let x=state.agenda.find(a=>a.id===id);if(!x)return;let selected=document.getElementById('ar').value;
+if(String(selected).startsWith('test:')){
+  const tr=state.testRecipes?.find(r=>Number(r.id)===Number(String(selected).slice(5)));if(!tr)return;
+  x.recipeId='';x.testRecipeId=tr.id;x.name=tr.name;x.photo=tr.image||'';
+}else{
+  let r=state.recipes.find(r=>r.id==selected);if(!r)return;
+  x.recipeId=r.id;x.testRecipeId='';x.name=r.name;x.photo=(r.photos?.[0]||r.photo||'');
+}x.date=document.getElementById('ad').value;x.moment=document.getElementById('am').value;x.time=normalizeTime(document.getElementById('at').value,x.time);x.duration=Number(document.getElementById('adu').value)||0;x.advisedTime=normalizeTime(document.getElementById('ast').value,startTime(x.time,x.duration));x.notifyTime=x.advisedTime;x.photo=(r.photos?.[0]||r.photo||'');save();closeModal();renderAgenda();updateReminder();toast('Repas modifié ✨')}
 function moveAgenda(id){let x=state.agenda.find(a=>a.id===id);if(!x)return;let date=prompt('Nouvelle date (AAAA-MM-JJ) :',x.date);if(!date)return;let time=prompt('Nouvelle heure (HH:MM) :',x.time);if(!time)return;time=normalizeTime(time,x.time);x.date=date;x.time=time;x.advisedTime=prompt('Heure conseillée (HH:MM) :',x.advisedTime||startTime(time,x.duration))||x.advisedTime||startTime(time,x.duration);x.notifyTime=x.advisedTime;save();renderAgenda();updateReminder();toast('Repas déplacé ↔️')}
 function consumeOneStockByName(name){name=String(name||'').replace(/^‼️\s*/,'').replace(/\s*— à consommer$/,'').trim();if(!name)return null;let matches=state.stock.filter(s=>sameFood(String(s.name||''),name)&&Number(s.qty)>0);if(!matches.length)return null;matches.sort((a,b)=>String(a.date||'9999-12-31').localeCompare(String(b.date||'9999-12-31')));let x=matches[0];x.qty=Number(x.qty)-1;if(x.qty<=0){state.stock=state.stock.filter(s=>s!==x);state.agenda=state.agenda.filter(a=>Number(a.stockId)!==Number(x.id));}return x}
 function consumeAgendaMeal(id){let x=state.agenda.find(a=>a.id===id);if(!x)return;let now=new Date();let record={id:Date.now(),recipeId:x.recipeId||null,name:x.name,date:localDateKey(now),time:now.toTimeString().slice(0,5),moment:x.moment||'',agendaId:x.id,consumed:true};state.mealHistory=state.mealHistory||[];state.mealHistory.unshift(record);let consumed=x.stockConsumed?x:consumeOneStockByName(x.name);/* Le repas programmé est toujours retiré de l’agenda. Une seule portion est consommée au total. Si elle a déjà été déplacée depuis le stock, on ne la retire pas une seconde fois. */state.agenda=state.agenda.filter(a=>a.id!==id);save();renderStock();renderAgenda();updateReminder();toast(consumed?'Recette ajoutée à l’historique 🍽️ · 1 portion retirée du stock':'Recette ajoutée à l’historique 🍽️')}
@@ -2090,7 +2081,7 @@ function openTestRecipeModal(id=null){
     <div class="field full"><label>👩‍🍳 Préparation (1 étape par ligne)</label><textarea id="trPreparation" rows="7" placeholder="1. Mélanger…&#10;2. Cuire…">${esc(item?.preparation||item?.steps||'')}</textarea></div>
     <div class="field full"><label>Notes</label><textarea id="trNotes" rows="3" placeholder="Remarques, modifications, idées…">${esc(item?.notes||'')}</textarea></div>
   </div>
-  <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
+  <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button>${item?`<button class="btn" type="button" onclick="openTestRecipeAgenda(${item.id})">📅 Mettre dans l’agenda</button>`:''}<button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
   showModal();
   const oldImg=document.getElementById('trImagePreview');
   if(oldImg && item?.image) oldImg.innerHTML=`<img src="${esc(item.image)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`;
@@ -2110,6 +2101,44 @@ function removeTestRecipeImage(){
   window.testRecipeImageDraft='';
   const input=document.getElementById('trImage');if(input)input.value='';
   const box=document.getElementById('trImagePreview');if(box)box.innerHTML='';
+}
+function openTestRecipeAgenda(id){
+  const x=state.testRecipes.find(r=>Number(r.id)===Number(id));
+  if(!x)return;
+  const today=localDateKey(new Date());
+  document.getElementById('modal').className='modal';
+  document.getElementById('modal').innerHTML=`<h2>📅 Mettre dans l’agenda</h2>
+  <div class="small" style="margin-bottom:10px"><strong>${esc(x.name)}</strong></div>
+  ${x.image?`<img src="${esc(x.image)}" alt="" style="display:block;width:100%;max-height:150px;object-fit:cover;border-radius:12px;margin-bottom:10px">`:''}
+  <div class="form-grid">
+    <div class="field"><label>Date</label><input id="trAd" type="date" value="${today}"></div>
+    <div class="field"><label>Moment</label><select id="trAm" onchange="syncTestAgendaTime()"><option>Matin</option><option>Midi</option><option selected>Soir</option></select></div>
+    <div class="field"><label>Heure du repas</label><input id="trAt" type="time" value="${momentDefaultTime('Soir')}"></div>
+    <div class="field"><label>Temps de préparation (min)</label><input id="trAdu" type="number" min="0" value="50"></div>
+  </div>
+  <div class="actions"><button class="btn ghost" onclick="openTestRecipeModal(${x.id})">Annuler</button><button class="btn purple" onclick="saveTestRecipeAgenda(${x.id})">📅 Programmer</button></div>`;
+  showModal();
+}
+function syncTestAgendaTime(){
+  const am=document.getElementById('trAm'),at=document.getElementById('trAt');
+  if(am&&at)at.value=momentDefaultTime(am.value);
+}
+function saveTestRecipeAgenda(id){
+  const x=state.testRecipes.find(r=>Number(r.id)===Number(id));if(!x)return;
+  const time=normalizeTime(document.getElementById('trAt').value);
+  const duration=Number(document.getElementById('trAdu').value)||0;
+  const advisedTime=startTime(time,duration);
+  state.agenda.push({
+    id:Date.now(),
+    recipeId:'',
+    testRecipeId:x.id,
+    name:x.name,
+    date:document.getElementById('trAd').value,
+    moment:document.getElementById('trAm').value,
+    time,duration,advisedTime,notifyTime:advisedTime,
+    photo:x.image||''
+  });
+  save();closeModal();renderAgenda();updateReminder();toast('Recette ajoutée à l’agenda 📅');
 }
 function saveTestRecipe(id){
   const name=document.getElementById('trName').value.trim();
@@ -2138,19 +2167,28 @@ function renderTestRecipes(){
   const list=state.testRecipes.filter(x=>!q||String(x.name||'').toLowerCase().includes(q)||String(x.link||'').toLowerCase().includes(q)||getTestRecipeIngredients(x).some(i=>i.text.toLowerCase().includes(q)));
   grid.innerHTML=list.length?list.map(x=>{
     const ingredients=getTestRecipeIngredients(x);
-    const linked=ingredients.filter(i=>i.shoppingId).map(i=>(state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))).filter(Boolean);
-    return `<article class="card clickable" style="padding:16px;display:flex;flex-direction:column;gap:10px;cursor:pointer" onclick="openTestRecipeModal(${x.id})">
-      ${x.image?`<img class="test-recipe-card-image" src="${esc(x.image)}" alt="Image de ${esc(x.name)}" style="width:100%;height:180px;object-fit:cover;border-radius:12px">`:''}
-      <div style="display:flex;align-items:flex-start;gap:10px"><input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px"><div style="flex:1;min-width:0"><h3 style="margin:0 0 4px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3></div></div>
-      ${ingredients.length?`<div><h4 style="margin:2px 0 5px">🥕 Ingrédients</h4><div class="small" style="display:flex;flex-direction:column;gap:3px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
-      ${x.preparation||x.steps?`<div><h4 style="margin:2px 0 5px">👩‍🍳 Préparation</h4><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(x.preparation||x.steps)}</div></div>`:''}
-      ${x.notes?`<div><h4 style="margin:2px 0 5px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}
-      ${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Ouvrir sur YouTube / Instagram</a><button class="btn ghost" onclick="event.stopPropagation();copyTestRecipeLink(${x.id})">📋 Copier le lien</button>`:`<div class="small">Aucun lien.</div>`}
-      <div class="actions" style="margin-top:0"><button class="btn ghost mini" onclick="event.stopPropagation();deleteTestRecipe(${x.id})">🗑️ Supprimer</button></div>
+    return `<article class="card clickable test-recipe-card" style="padding:12px;cursor:pointer" onclick="openTestRecipeModal(${x.id})">
+      <div class="test-recipe-card-layout">
+        <div class="test-recipe-card-info">
+          <div style="display:flex;align-items:flex-start;gap:9px">
+            <input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px;flex:0 0 auto">
+            <div style="flex:1;min-width:0">
+              <h3 style="margin:0 0 5px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3>
+              ${ingredients.length?`<div><h4 style="margin:2px 0 4px">🥕 Ingrédients</h4><div class="small" style="display:flex;flex-direction:column;gap:2px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
+              ${x.preparation||x.steps?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">👩‍🍳 Préparation</h4><div class="small" style="white-space:pre-wrap;line-height:1.4">${esc(x.preparation||x.steps)}</div></div>`:''}
+              ${x.notes?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}
+            </div>
+          </div>
+          <div class="actions" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+            ${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo</a><button class="btn ghost mini" onclick="event.stopPropagation();copyTestRecipeLink(${x.id})">📋 Copier</button>`:''}
+            <button class="btn ghost mini" onclick="event.stopPropagation();deleteTestRecipe(${x.id})">🗑️ Supprimer</button>
+          </div>
+        </div>
+        ${x.image?`<img class="test-recipe-card-image" src="${esc(x.image)}" alt="" loading="lazy">`:''}
+      </div>
     </article>`;
   }).join(''):'<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';
 }
-
 
 function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><h3 style="margin:10px 0 6px">🍽️ Historique des repas</h3><div id="mealHistorySettings"></div><h3 style="margin:10px 0 6px">📖 Catégories des recettes</h3><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter</button></div><h3 style="margin:10px 0 6px">🛒 Catégories des courses</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage dans Liste de courses.</div><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin:8px 8px 0 0" onclick="exportData()">Exporter toutes mes données</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('importDataInput').click()">Importer mes données</button><input id="importDataInput" type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"><div class="small" style="margin-top:8px">La sauvegarde inclut aussi les photos des recettes, du stock et de l’agenda.</div><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderCategorySettings();renderMealHistorySettings()}
 function renderCategorySettings(){let r=document.getElementById('recipeCatSettings'),s=document.getElementById('shopCatSettings');if(!r||!s)return;r.innerHTML=state.recipeCategories.map((c,i)=>`<div class="shop-item" style="border:1px solid var(--line);border-radius:9px;margin:3px 0;padding:5px 7px;min-height:34px"><div class="shop-name" style="font-weight:400">${esc(c)}</div><button class="btn ghost mini" style="padding:4px 7px" onclick="renameCategory('recipe',${i})">✏️</button><button class="btn ghost mini" style="padding:4px 7px" onclick="deleteCategory('recipe',${i})">🗑️</button></div>`).join('');s.innerHTML=state.shoppingCategories.map((c,i)=>`<div class="shop-item" style="border:1px solid var(--line);border-radius:9px;margin:3px 0;padding:5px 7px;min-height:34px"><div class="shop-name" style="font-weight:400">${esc(c)}</div><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('shopping',${i},-1)" ${i===0?'disabled':''}>↑</button><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('shopping',${i},1)" ${i===state.shoppingCategories.length-1?'disabled':''}>↓</button><button class="btn ghost mini" style="padding:4px 7px" onclick="renameCategory('shopping',${i})">✏️</button><button class="btn ghost mini" style="padding:4px 7px" onclick="deleteCategory('shopping',${i})">🗑️</button></div>`).join('')}
