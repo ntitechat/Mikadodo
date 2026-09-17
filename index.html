@@ -2117,7 +2117,7 @@ function openTestRecipeModal(id=null){
     <div class="field full"><label>👩‍🍳 Préparation (1 étape par ligne)</label><textarea id="trPreparation" rows="7" placeholder="1. Mélanger…&#10;2. Cuire…">${esc(item?.preparation||item?.steps||'')}</textarea></div>
     <div class="field full"><label>Notes</label><textarea id="trNotes" rows="3" placeholder="Remarques, modifications, idées…">${esc(item?.notes||'')}</textarea></div>
   </div>
-  <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button>${item?`<button class="btn ghost" type="button" onclick="deleteTestRecipe(${item.id})">🗑️ Supprimer</button><button class="btn" type="button" onclick="openTestRecipeAgenda(${item.id})">📅 Mettre dans l’agenda</button>`:''}<button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
+  <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button>${item?`<button class="btn ghost mini" type="button" onclick="deleteTestRecipe(${item.id})" aria-label="Supprimer la recette" title="Supprimer">🗑️</button><button class="btn" type="button" onclick="openTestRecipeAgenda(${item.id})">📅 Mettre dans l’agenda</button>`:''}<button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
   showModal();
   const oldImg=document.getElementById('trImagePreview');
   if(oldImg && item?.image) oldImg.innerHTML=`<img src="${esc(item.image)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`;
