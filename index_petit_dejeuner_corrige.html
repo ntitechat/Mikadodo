@@ -666,7 +666,7 @@ async function buildBreakfastDishImageExact(items){
   const images=[];
   for(const item of items) images.push(await loadBreakfastDishImage(breakfastDishPhotoData(item)));
 
-  const labels=['🥛 Laitage','🌾 Féculents','🍎 Fruit'];
+  const labels=['Laitage','Féculents','Fruit'];
   const gap=18;
   const innerX=box.x+22;
   const innerY=box.y+22;

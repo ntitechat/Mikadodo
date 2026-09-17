@@ -584,13 +584,11 @@ async function buildBreakfastDishImage(items){
   ctx.roundRect(box.x,box.y,box.w,box.h,36);
   ctx.fill();
 
-  const images=[];
-  for(const item of items){
-    images.push(await loadBreakfastDishImage(breakfastDishPhotoData(item)));
-  }
+  // Chargement parallèle des photos : plus rapide et sans rendu d’emoji dans l’image.
+  const images=await Promise.all(items.map(item=>loadBreakfastDishImage(breakfastDishPhotoData(item))));
 
   // Ordre d'affichage : laitage → céréales → fruit.
-  const labels=['🥛 Laitage','🌾 Féculents','🍎 Fruit'];
+  const labels=['Laitage','Féculents','Fruit'];
   const gap=18;
   const innerX=box.x+22;
   const innerY=box.y+22;
