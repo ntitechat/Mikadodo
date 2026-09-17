@@ -70,6 +70,36 @@
 .recipe-search-clear:hover{background:rgba(0,0,0,.05)!important}
 @media(max-width:600px){.recipe-search-clear{right:10px!important}}
 
+
+/* Recettes à tester : image compacte à droite, informations à gauche */
+.test-recipe-card-layout{
+  display:flex!important;
+  align-items:flex-start;
+  gap:14px;
+}
+.test-recipe-card-info{
+  flex:1 1 auto;
+  min-width:0;
+}
+.test-recipe-card-image{
+  flex:0 0 110px;
+  width:110px;
+  max-width:110px;
+  height:90px;
+  object-fit:cover;
+  border-radius:10px;
+  margin:0!important;
+}
+@media (max-width:600px){
+  .test-recipe-card-layout{gap:10px;}
+  .test-recipe-card-image{
+    flex-basis:82px;
+    width:82px;
+    max-width:82px;
+    height:70px;
+  }
+}
+
 </style>
 
 <style>
@@ -2110,7 +2140,7 @@ function renderTestRecipes(){
     const ingredients=getTestRecipeIngredients(x);
     const linked=ingredients.filter(i=>i.shoppingId).map(i=>(state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))).filter(Boolean);
     return `<article class="card clickable" style="padding:16px;display:flex;flex-direction:column;gap:10px;cursor:pointer" onclick="openTestRecipeModal(${x.id})">
-      ${x.image?`<img src="${esc(x.image)}" alt="Image de ${esc(x.name)}" style="width:100%;height:180px;object-fit:cover;border-radius:12px">`:''}
+      ${x.image?`<img class="test-recipe-card-image" src="${esc(x.image)}" alt="Image de ${esc(x.name)}" style="width:100%;height:180px;object-fit:cover;border-radius:12px">`:''}
       <div style="display:flex;align-items:flex-start;gap:10px"><input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px"><div style="flex:1;min-width:0"><h3 style="margin:0 0 4px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3></div></div>
       ${ingredients.length?`<div><h4 style="margin:2px 0 5px">🥕 Ingrédients</h4><div class="small" style="display:flex;flex-direction:column;gap:3px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></div>`:''}
       ${x.preparation||x.steps?`<div><h4 style="margin:2px 0 5px">👩‍🍳 Préparation</h4><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(x.preparation||x.steps)}</div></div>`:''}
