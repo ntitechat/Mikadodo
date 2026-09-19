@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#E8A7B8"/>
 <link rel="manifest" href="manifest.webmanifest"/>
 <title>Mikadodo</title>
+<script src="mikadodo-photos-recovery.js"></script>
 <style>
 :root{--green:#E8A7B8;--green2:#FCEFF3;--purple:#D889A1;--purple2:#F9E6EC;--ink:#292326;--muted:#7D7478;--line:#EEE3E7;--bg:#FFFBFC;--danger:#D86B7A;--warning:#D9A35B;--shadow:0 4px 16px rgba(105,72,84,.10)}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}button,input,select,textarea{font:inherit}button{border:0;cursor:pointer}.app{min-height:100vh;padding-bottom:76px}.top{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--line)}.hero{display:none}.hero .gear{display:none}.tabs{display:flex;overflow:auto;background:#fff}.top-nav{display:flex;gap:7px;overflow:auto;padding:8px 12px;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line);scrollbar-width:none}.top-nav::-webkit-scrollbar{display:none}.top-nav button{flex:0 0 auto;background:#fff;border:1px solid var(--line);color:#777;border-radius:12px;padding:8px 12px;font-size:13px;font-weight:800;white-space:nowrap}.top-nav button.active{background:var(--green2);color:var(--green);border-color:var(--green)}.tab{padding:10px 14px;white-space:nowrap;color:#777;font-weight:700;font-size:14px;border-bottom:3px solid transparent}.tab.active{color:var(--green);border-color:var(--green)}main{max-width:900px;margin:auto;padding:18px}.view{display:none}.view.active{display:block}.section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0 10px;position:relative}.section-head:after{content:'✦ ·';font-size:10px;color:#D889A1;opacity:.5;margin-left:auto}.section-head .btn{font-size:13px;padding:8px 11px}.section-head h2{margin:0;font-size:20px}.btn{background:var(--green);color:#fff;padding:11px 16px;border-radius:13px;font-weight:800}.btn.purple{background:var(--purple)}.breakfast-new-btn{background:#C95F7D}.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.search{width:100%;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:#fff;margin-bottom:14px}.chips{display:flex;gap:8px;overflow:auto;padding-bottom:8px}.breakfast-category-chip{font-weight:400}.chip{padding:9px 13px;border-radius:999px;background:#fff;border:1px solid var(--line);white-space:nowrap}.chip.active{background:var(--purple);color:#fff;border-color:var(--purple)}.grid{display:grid;grid-template-columns:1fr;gap:0}.card{background:#fff;border-radius:0;box-shadow:none;overflow:hidden}.recipe-card{display:flex;align-items:center;min-height:120px;border-bottom:1px solid var(--line);padding:12px 0;gap:16px}.recipe-card .card-body{order:1;flex:1;min-width:0;padding:8px 0}.recipe-card .recipe-photo{order:2;flex:0 0 142px;width:142px;height:106px;border-radius:15px;background:linear-gradient(135deg,#e8d2aa,#f6f0df)}.recipe-photo{height:125px;background:linear-gradient(135deg,#e8d2aa,#f6f0df);display:flex;align-items:center;justify-content:center;font-size:64px;overflow:hidden}.recipe-photo img{width:100%;height:100%;object-fit:cover}
 .recipe-photo.recipe-emoji-photo{background:linear-gradient(135deg,#FCEFF3,#fff);padding:8px}
@@ -685,6 +686,22 @@ async function readPhotoFromDb(db,key){
   return '';
 }
 async function recoverPhotoByKey(key){
+  // Récupération des anciennes photos livrées avec l'application.
+  try{
+    const bundled=window.MIKADODO_RECOVERY_PHOTOS?.[String(key)];
+    if(bundled){
+      const r=await fetch(bundled,{cache:'force-cache'});
+      if(r.ok){
+        const blob=await r.blob();
+        return await new Promise(res=>{
+          const reader=new FileReader();
+          reader.onload=()=>res(reader.result||'');
+          reader.onerror=()=>res('');
+          reader.readAsDataURL(blob);
+        });
+      }
+    }
+  }catch(e){}
   try{
     const safe=String(key).replace(/[^A-Za-z0-9._-]/g,'_');
     const files=['jpg','jpeg','png','webp','gif','avif'];
