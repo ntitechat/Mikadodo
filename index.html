@@ -2129,7 +2129,7 @@ function openTestRecipeDetails(id){
   <section><h3>👩‍🍳 Préparation</h3>${preparation?`<div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(preparation)}</div>`:`<div class="small">Aucune préparation renseignée.</div>`}</section>
   ${item.notes?`<section><h3>📝 Notes</h3><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(item.notes)}</div></section>`:''}
   <div class="actions" style="margin-top:14px;justify-content:flex-start;gap:6px;flex-wrap:wrap">
-    ${(item.link||item.link2)?`${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 1</a><button class="btn ghost mini" onclick="copyTestRecipeLink(${item.id},1)">📋 Copier 1</button>`:''}${item.link2?`<a href="${esc(item.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 2</a><button class="btn ghost mini" onclick="copyTestRecipeLink(${item.id},2)">📋 Copier 2</button>`:''}`:''}
+    ${(item.link||item.link2)?`${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 1</a>`:''}${item.link2?`<a href="${esc(item.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 2</a>`:''}`:''}
     <button class="btn ghost" type="button" onclick="closeModal()">Fermer</button>
   </div>`;
   showModal();
@@ -2233,7 +2233,6 @@ function saveTestRecipe(id){
   save();closeModal();window.editingTestRecipeId=null;renderTestRecipes();toast(id?'Recette à tester modifiée ✨':'Recette à tester ajoutée');
 }
 function deleteTestRecipe(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(!x)return;if(!confirm(`Supprimer « ${x.name} » ?`))return;state.testRecipes=state.testRecipes.filter(r=>r.id!==Number(id));save();renderTestRecipes();toast('Recette supprimée');}
-async function copyTestRecipeLink(id,which=1){const x=state.testRecipes.find(r=>r.id===Number(id));const url=which===2?x?.link2:x?.link;if(!url)return toast('Aucun lien à copier');try{await navigator.clipboard.writeText(url);toast('Lien copié 📋')}catch(e){const t=document.createElement('textarea');t.value=url;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Lien copié 📋')}}
 function toggleTestRecipeDone(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(!x)return;x.done=!x.done;save();renderTestRecipes();}
 function renderTestRecipes(){
   const grid=document.getElementById('testRecipeGrid');if(!grid)return;
@@ -2252,7 +2251,7 @@ function renderTestRecipes(){
             </div>
           </div>
           <div class="actions" style="margin-top:8px;gap:6px;flex-wrap:wrap">
-            ${(x.link||x.link2)?`${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 1</a><button class="btn ghost mini" onclick="event.stopPropagation();copyTestRecipeLink(${x.id},1)">📋 Copier 1</button>`:''}${x.link2?`<a href="${esc(x.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 2</a><button class="btn ghost mini" onclick="event.stopPropagation();copyTestRecipeLink(${x.id},2)">📋 Copier 2</button>`:''}`:''}
+            ${(x.link||x.link2)?`${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 1</a>`:''}${x.link2?`<a href="${esc(x.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 2</a>`:''}`:''}
 
           </div>
         </div>
