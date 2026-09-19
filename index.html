@@ -653,6 +653,8 @@ state.shopping.forEach(x=>{x.cat=x.cat||'Autre';x.place=x.place||'Placard';x.kee
 state.recipes.forEach(r=>{r.breakfastCategory=BREAKFAST_SUBCATEGORIES.includes(r.breakfastCategory)?r.breakfastCategory:'';r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes';r.videoLink=r.videoLink||'';r.videoLink2=r.videoLink2||'';r.recipeEmoji=RECIPE_EMOJI_OPTIONS.some(x=>x.id===r.recipeEmoji)?r.recipeEmoji:'none';if(r.keepUnit==='années')r.keepUnit='année'});state.stock.forEach(x=>x.photo=x.photo||'');
 state.agenda.forEach(x=>{x.advisedTime=x.advisedTime||x.notifyTime||startTime(x.time,x.duration||0);x.notifyTime=x.advisedTime});
 const PHOTO_DB='MikadodoPhotosV1';
+const TEST_IMAGE_PREFIX='idbtest:';
+let testImageCache={};
 let photoCache={};
 async function requestDurablePhotoStorage(){
   try{
@@ -660,14 +662,47 @@ async function requestDurablePhotoStorage(){
   }catch(e){}
 }
 function photoDB(){return new Promise((resolve,reject)=>{
-  const r=indexedDB.open(PHOTO_DB,1);
+  const r=indexedDB.open(PHOTO_DB,2);
   r.onupgradeneeded=()=>{
     if(!r.result.objectStoreNames.contains('photos'))r.result.createObjectStore('photos');
+    if(!r.result.objectStoreNames.contains('testImages'))r.result.createObjectStore('testImages');
   };
   r.onsuccess=()=>{requestDurablePhotoStorage();resolve(r.result)};
   r.onerror=()=>reject(r.error)
 })}
 async function putPhoto(dataUrl,id){const db=await photoDB();const key=id||('p_'+Date.now()+'_'+Math.random().toString(36).slice(2));await new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').put(dataUrl,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});photoCache['idb:'+key]=dataUrl;return 'idb:'+key}
+async function putTestRecipeImage(file,id){
+  if(!file)return '';
+  const db=await photoDB();
+  const key=id||('test_'+Date.now()+'_'+Math.random().toString(36).slice(2));
+  await new Promise((res,rej)=>{const tx=db.transaction('testImages','readwrite');tx.objectStore('testImages').put(file,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});
+  const ref=TEST_IMAGE_PREFIX+key;
+  try{if(testImageCache[ref])URL.revokeObjectURL(testImageCache[ref]);testImageCache[ref]=URL.createObjectURL(file);}catch(e){}
+  return ref;
+}
+async function getTestRecipeImage(ref){
+  if(!ref)return '';
+  if(!String(ref).startsWith(TEST_IMAGE_PREFIX))return String(ref);
+  if(testImageCache[ref])return testImageCache[ref];
+  const key=String(ref).slice(TEST_IMAGE_PREFIX.length);
+  try{
+    const db=await photoDB();
+    const blob=await new Promise((res,rej)=>{const tx=db.transaction('testImages','readonly');const q=tx.objectStore('testImages').get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
+    db.close();
+    if(blob instanceof Blob){const url=URL.createObjectURL(blob);testImageCache[ref]=url;return url;}
+  }catch(e){}
+  return '';
+}
+async function migrateTestRecipeImages(){
+  for(const x of state.testRecipes||[]){
+    if(typeof x.image==='string' && x.image.startsWith('data:image/')){
+      try{
+        const res=await fetch(x.image); const blob=await res.blob();
+        x.image=await putTestRecipeImage(blob);
+      }catch(e){console.warn('Migration image recette à tester impossible',e);}
+    }
+  }
+}
 function normalizeStoredPhoto(v){
   if(!v)return '';
   if(typeof v==='string')return v.startsWith('data:image/')?v:v;
@@ -768,6 +803,7 @@ async function initPhotoStorage(){
     }
     for(const x of state.stock)await migratePhotoField(x,'photo');
     for(const x of state.agenda)await migratePhotoField(x,'photo');
+    await migrateTestRecipeImages();
     save();
   }catch(e){console.warn('Stockage photos indisponible',e)}
 }
@@ -2114,32 +2150,87 @@ function addTestIngredientToShopping(index){
   renderTestRecipeIngredientLinks();
   toast(existing?`« ${name} » déjà dans la liste de courses ✓`:`« ${name} » ajouté aux courses et lié ✓`);
 }
-function openTestRecipeDetails(id){
+async function addTestRecipeToRecipes(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id));
+  if(!item)return;
+  if(item.recipeId){
+    const existing=state.recipes.find(r=>Number(r.id)===Number(item.recipeId));
+    if(existing){ openRecipe(existing.id); toast('Cette recette est déjà dans Mes recettes ✓'); return; }
+    item.recipeId='';
+  }
+  const ingredients=getTestRecipeIngredients(item);
+  let photos=[];
+  if(item.image){
+    try{
+      let blob=null;
+      if(String(item.image).startsWith(TEST_IMAGE_PREFIX)){
+        const db=await photoDB();
+        const key=String(item.image).slice(TEST_IMAGE_PREFIX.length);
+        blob=await new Promise((res,rej)=>{const tx=db.transaction('testImages','readonly');const q=tx.objectStore('testImages').get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
+        db.close();
+      }else if(String(item.image).startsWith('data:image/')){
+        const res=await fetch(item.image); blob=await res.blob();
+      }
+      if(blob instanceof Blob){
+        const dataUrl=await new Promise(resolve=>{const fr=new FileReader();fr.onload=()=>resolve(String(fr.result||''));fr.onerror=()=>resolve('');fr.readAsDataURL(blob)});
+        if(dataUrl) photos=[await putPhoto(dataUrl)];
+      }
+    }catch(e){console.warn('Copie de l’image vers Mes recettes impossible',e);}
+  }
+  const newId=Date.now()+Math.floor(Math.random()*1000);
+  const recipe={
+    id:newId,
+    name:String(item.name||'Recette').trim(),
+    cat:'Plat',
+    prep:0,cook:0,serv:1,servUnit:'personnes',cost:0,
+    keep:3,keepUnit:'jours',keepPlace:'Réfrigérateur',
+    emoji:'🍽️',recipeEmoji:'none',
+    ingredients:ingredients.map(x=>x.text),
+    ingredientLinks:ingredients.map(x=>x.link||{}),
+    steps:String(item.preparation||item.steps||'').split('\n').map(x=>x.trim()).filter(Boolean),
+    videoLink:String(item.link||'').trim(),
+    videoLink2:String(item.link2||'').trim(),
+    notes:String(item.notes||'').trim(),
+    photos,photo:photos[0]||'',used:{},hideFromCookable:false
+  };
+  state.recipes.push(recipe);
+  item.recipeId=newId;
+  save();
+  closeModal();
+  renderRecipes();
+  toast('Recette ajoutée à Mes recettes ✨');
+  openRecipe(newId);
+}
+
+async function openTestRecipeDetails(id){
   const item=state.testRecipes.find(x=>x.id===Number(id));
   if(!item)return;
   const ingredients=getTestRecipeIngredients(item);
   const preparation=item.preparation||item.steps||'';
+  const imageSrc=await getTestRecipeImage(item.image||'');
   document.getElementById('modal').className='modal recipe-detail-modal';
   document.getElementById('modal').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
     <h2 style="margin:0">🧪 ${esc(item.name||'Recette')}</h2>
     <button class="btn purple mini" type="button" onclick="openTestRecipeModal(${item.id})">✏️ Modifier</button>
   </div>
-  ${item.image?`<img src="${esc(item.image)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin-bottom:12px">`:''}
+  ${imageSrc?`<img src="${esc(imageSrc)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin-bottom:12px">`:''}
   ${ingredients.length?`<section><h3>🥕 Ingrédients</h3><div class="small" style="display:flex;flex-direction:column;gap:4px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></section>`:`<section><h3>🥕 Ingrédients</h3><div class="small">Aucun ingrédient renseigné.</div></section>`}
   <section><h3>👩‍🍳 Préparation</h3>${preparation?`<div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(preparation)}</div>`:`<div class="small">Aucune préparation renseignée.</div>`}</section>
   ${item.notes?`<section><h3>📝 Notes</h3><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(item.notes)}</div></section>`:''}
   <div class="actions" style="margin-top:14px;justify-content:flex-start;gap:6px;flex-wrap:wrap">
+    ${item.recipeId?`<button class="btn purple mini" type="button" onclick="addTestRecipeToRecipes(${item.id})">✓ Déjà dans Mes recettes</button>`:`<button class="btn purple mini" type="button" onclick="addTestRecipeToRecipes(${item.id})">➕ Ajouter à Mes recettes</button>`}
     ${(item.link||item.link2)?`${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 1</a>`:''}${item.link2?`<a href="${esc(item.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 2</a>`:''}`:''}
     <button class="btn ghost" type="button" onclick="closeModal()">Fermer</button>
   </div>`;
   showModal();
 }
 
-function openTestRecipeModal(id=null){
+async function openTestRecipeModal(id=null){
   const item=id?state.testRecipes.find(x=>x.id===Number(id)):null;
   window.editingTestRecipeId=item?.id||null;
   window.testRecipeIngredientDraft=null;
-  window.testRecipeImageDraft=item?.image||'';
+  window.testRecipeImageDraft=undefined;
+  window.testRecipeImageOriginal=item?.image||'';
   document.getElementById('modal').className='modal recipe-edit-modal';
   document.getElementById('modal').innerHTML=`<h2>🧪 ${item?'Modifier':'Nouvelle'} recette à tester</h2>
   <div class="form-grid">
@@ -2157,7 +2248,7 @@ function openTestRecipeModal(id=null){
   <div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button>${item?`<button class="btn ghost mini" type="button" onclick="deleteTestRecipe(${item.id})" aria-label="Supprimer la recette" title="Supprimer">🗑️</button><button class="btn" type="button" onclick="openTestRecipeAgenda(${item.id})">📅 Mettre dans l’agenda</button>`:''}<button class="btn purple" onclick="saveTestRecipe(${item?item.id:''})">${item?'Enregistrer':'Ajouter'}</button></div>`;
   showModal();
   const oldImg=document.getElementById('trImagePreview');
-  if(oldImg && item?.image) oldImg.innerHTML=`<img src="${esc(item.image)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`;
+  if(oldImg && item?.image){ const src=await getTestRecipeImage(item.image); if(src) oldImg.innerHTML=`<img src="${esc(src)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`; }
   renderTestRecipeIngredientLinks();
 }
 
@@ -2165,16 +2256,16 @@ function previewTestRecipeImage(input){
   const file=input?.files?.[0], box=document.getElementById('trImagePreview');
   if(!file||!box)return;
   if(!file.type.startsWith('image/')){input.value='';return toast('Choisis une image.');}
-  if(file.size>4*1024*1024){input.value='';return toast('Image trop lourde (4 Mo maximum).');}
-  const reader=new FileReader();
-  reader.onload=()=>{window.testRecipeImageDraft=reader.result;box.innerHTML=`<img src="${reader.result}" alt="Aperçu" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`};
-  reader.readAsDataURL(file);
+  window.testRecipeImageDraft=file;
+  try{const old=box.querySelector('img')?.src;if(old&&old.startsWith('blob:'))URL.revokeObjectURL(old);const src=URL.createObjectURL(file);box.innerHTML=`<img src="${src}" alt="Aperçu" style="display:block;width:100%;max-height:220px;object-fit:cover;border-radius:12px"><button type="button" class="btn ghost mini" style="margin-top:6px" onclick="removeTestRecipeImage()">🗑️ Retirer l'image</button>`;}catch(e){toast('Impossible d’afficher cette image.');}
 }
 function removeTestRecipeImage(){
   window.testRecipeImageDraft='';
+  window.testRecipeImageOriginal='';
   const input=document.getElementById('trImage');if(input)input.value='';
   const box=document.getElementById('trImagePreview');if(box)box.innerHTML='';
 }
+
 function openTestRecipeAgenda(id){
   const x=state.testRecipes.find(r=>Number(r.id)===Number(id));
   if(!x)return;
@@ -2213,52 +2304,52 @@ function saveTestRecipeAgenda(id){
   });
   save();closeModal();renderAgenda();updateReminder();toast('Recette ajoutée à l’agenda 📅');
 }
-function saveTestRecipe(id){
+async function saveTestRecipe(id){
   const name=document.getElementById('trName').value.trim();
   const link=document.getElementById('trLink').value.trim();
   const link2=document.getElementById('trLink2').value.trim();
   const ingredientTexts=String(document.getElementById('trIngredients').value||'').split('\n').map(x=>x.trim()).filter(Boolean);
   const draft=window.testRecipeIngredientDraft||{rows:[]};
-  const ingredients=ingredientTexts.map((text,i)=>{
-    const d=draft.rows?.[i]||{};
-    return {text,shoppingId:d.link?.shoppingId||'',qty:Number(d.link?.qty)||0,unit:d.link?.unit||'pieces',link:d.link||{}};
-  });
+  const ingredients=ingredientTexts.map((text,i)=>{const d=draft.rows?.[i]||{};return {text,shoppingId:d.link?.shoppingId||'',qty:Number(d.link?.qty)||0,unit:d.link?.unit||'pieces',link:d.link||{}};});
   const preparation=document.getElementById('trPreparation').value.trim();
   const notes=document.getElementById('trNotes').value.trim();
-  const image=window.testRecipeImageDraft!==undefined?window.testRecipeImageDraft:(id?state.testRecipes.find(r=>r.id===Number(id))?.image||'':'');
   if(!name)return toast('Indique un nom');
   if((link && !/^https?:\/\//i.test(link)) || (link2 && !/^https?:\/\//i.test(link2)))return toast('Colle des liens complets (https://…)');
-  if(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(x)Object.assign(x,{name,link,link2,ingredients,preparation,notes,image});}
+  const existing=id?state.testRecipes.find(r=>r.id===Number(id)):null;
+  let image=existing?.image||'';
+  if(window.testRecipeImageDraft instanceof Blob){
+    try{image=await putTestRecipeImage(window.testRecipeImageDraft);}catch(e){return toast('Impossible d’enregistrer cette image.');}
+  }else if(window.testRecipeImageDraft===''){image='';}
+  if(id){const x=existing;if(x)Object.assign(x,{name,link,link2,ingredients,preparation,notes,image});}
   else state.testRecipes.unshift({id:Date.now(),name,link,link2,ingredients,preparation,notes,image,done:false});
-  save();closeModal();window.editingTestRecipeId=null;renderTestRecipes();toast(id?'Recette à tester modifiée ✨':'Recette à tester ajoutée');
+  save();closeModal();window.editingTestRecipeId=null;window.testRecipeImageDraft=undefined;renderTestRecipes();toast(id?'Recette à tester modifiée ✨':'Recette à tester ajoutée');
 }
+
 function deleteTestRecipe(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(!x)return;if(!confirm(`Supprimer « ${x.name} » ?`))return;state.testRecipes=state.testRecipes.filter(r=>r.id!==Number(id));save();renderTestRecipes();toast('Recette supprimée');}
 function toggleTestRecipeDone(id){const x=state.testRecipes.find(r=>r.id===Number(id));if(!x)return;x.done=!x.done;save();renderTestRecipes();}
-function renderTestRecipes(){
+async function renderTestRecipes(){
   const grid=document.getElementById('testRecipeGrid');if(!grid)return;
   const q=(document.getElementById('testRecipeSearch')?.value||'').toLowerCase().trim();
   const list=state.testRecipes.filter(x=>!q||String(x.name||'').toLowerCase().includes(q)||(String(x.link||'').toLowerCase().includes(q)||String(x.link2||'').toLowerCase().includes(q))||getTestRecipeIngredients(x).some(i=>i.text.toLowerCase().includes(q)));
-  grid.innerHTML=list.length?list.map(x=>{
-    const ingredients=getTestRecipeIngredients(x);
-    return `<article class="card clickable test-recipe-card" style="padding:12px;cursor:pointer" onclick="openTestRecipeModal(${x.id})">
+  if(!list.length){grid.innerHTML='<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';return;}
+  const imageMap={};
+  await Promise.all(list.map(async x=>{if(x.image)imageMap[x.id]=await getTestRecipeImage(x.image);}));
+  grid.innerHTML=list.map(x=>{
+    const ingredients=getTestRecipeIngredients(x); const img=imageMap[x.id]||'';
+    return `<article class="card clickable test-recipe-card" style="padding:12px;cursor:pointer" onclick="openTestRecipeDetails(${x.id})">
       <div class="test-recipe-card-layout">
         <div class="test-recipe-card-info">
           <div style="display:flex;align-items:flex-start;gap:9px">
             <input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px;flex:0 0 auto">
-            <div style="flex:1;min-width:0">
-              <h3 style="margin:0 0 5px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3>
-              ${x.notes?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}
-            </div>
+            <div style="flex:1;min-width:0"><h3 style="margin:0 0 5px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3>
+            ${x.notes?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}</div>
           </div>
-          <div class="actions" style="margin-top:8px;gap:6px;flex-wrap:wrap">
-            ${(x.link||x.link2)?`${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 1</a>`:''}${x.link2?`<a href="${esc(x.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 2</a>`:''}`:''}
-
-          </div>
+          <div class="actions" style="margin-top:8px;gap:6px;flex-wrap:wrap">${x.recipeId?`<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">✓ Dans Mes recettes</button>`:`<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">➕ Ajouter à Mes recettes</button>`}${(x.link||x.link2)?`${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 1</a>`:''}${x.link2?`<a href="${esc(x.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 2</a>`:''}`:''}</div>
         </div>
-        ${x.image?`<img class="test-recipe-card-image" src="${esc(x.image)}" alt="" loading="lazy" decoding="async">`:`<div class="recipe-emoji-placeholder">${esc(x.emoji||'🍽️')}</div>`}
+        ${img?`<img class="test-recipe-card-image" src="${esc(img)}" alt="" loading="lazy" decoding="async">`:`<div class="recipe-emoji-placeholder">${esc(x.emoji||'🍽️')}</div>`}
       </div>
     </article>`;
-  }).join(''):'<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';
+  }).join('');
 }
 
 function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><h3 style="margin:10px 0 6px">🍽️ Historique des repas</h3><div id="mealHistorySettings"></div><h3 style="margin:10px 0 6px">📖 Catégories des recettes</h3><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter</button></div><h3 style="margin:10px 0 6px">🛒 Catégories des courses</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage dans Liste de courses.</div><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin:8px 8px 0 0" onclick="exportData()">Exporter toutes mes données</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('importDataInput').click()">Importer mes données</button><input id="importDataInput" type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"><div class="small" style="margin-top:8px">La sauvegarde inclut aussi les photos des recettes, du stock et de l’agenda.</div><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderCategorySettings();renderMealHistorySettings()}
