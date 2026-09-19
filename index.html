@@ -2206,23 +2206,60 @@ async function openTestRecipeDetails(id){
   const item=state.testRecipes.find(x=>x.id===Number(id));
   if(!item)return;
   const ingredients=getTestRecipeIngredients(item);
-  const preparation=item.preparation||item.steps||'';
+  const preparation=String(item.preparation||item.steps||'');
   const imageSrc=await getTestRecipeImage(item.image||'');
+  item.used=item.used||{};
+  const gallery=imageSrc?`<div class="recipe-gallery"><img class="recipe-detail-photo" src="${esc(imageSrc)}" alt="${esc(item.name||'Recette')}" onclick="zoomPhoto(this.src)"></div>`:'';
+  const ingredientHtml=ingredients.length?ingredients.map((i,n)=>`<li class="ingredient-row ${item.used[n]?'used':''}"><input type="checkbox" ${item.used[n]?'checked':''} onchange="toggleTestIngredientUsed(${item.id},${n},this.checked)"><span>${esc(i.text)}${i.shoppingId?` <small style="color:var(--purple);font-weight:700">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</small>`:''}</span></li>`).join(''):'<li class="ingredient-row"><span>Aucun ingrédient renseigné.</span></li>';
+  const prep=Number(item.prep)||0, cook=Number(item.cook)||0, serv=Number(item.serv)||1;
+  const lines=[prep?`⏱️ Préparation : <b>${formatDuration(prep)}</b>`:'',cook?`🔥 Cuisson : <b>${formatDuration(cook)}</b>`:'',prep+ cook?`⏱️ Total : <b>${formatDuration(prep+cook)}</b>`:''].filter(Boolean).join('<br>');
   document.getElementById('modal').className='modal recipe-detail-modal';
-  document.getElementById('modal').innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
-    <h2 style="margin:0">🧪 ${esc(item.name||'Recette')}</h2>
-    <button class="btn purple mini" type="button" onclick="openTestRecipeModal(${item.id})">✏️ Modifier</button>
-  </div>
-  ${imageSrc?`<img src="${esc(imageSrc)}" alt="Image de ${esc(item.name||'la recette')}" style="display:block;width:100%;max-height:240px;object-fit:cover;border-radius:12px;margin-bottom:12px">`:''}
-  ${ingredients.length?`<section><h3>🥕 Ingrédients</h3><div class="small" style="display:flex;flex-direction:column;gap:4px">${ingredients.map(i=>`<div>• ${esc(i.text)}${i.shoppingId?` <span style="color:var(--purple)">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</span>`:''}</div>`).join('')}</div></section>`:`<section><h3>🥕 Ingrédients</h3><div class="small">Aucun ingrédient renseigné.</div></section>`}
-  <section><h3>👩‍🍳 Préparation</h3>${preparation?`<div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(preparation)}</div>`:`<div class="small">Aucune préparation renseignée.</div>`}</section>
-  ${item.notes?`<section><h3>📝 Notes</h3><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(item.notes)}</div></section>`:''}
-  <div class="actions" style="margin-top:14px;justify-content:flex-start;gap:6px;flex-wrap:wrap">
-    ${item.recipeId?`<button class="btn purple mini" type="button" onclick="addTestRecipeToRecipes(${item.id})">✓ Déjà dans Mes recettes</button>`:`<button class="btn purple mini" type="button" onclick="addTestRecipeToRecipes(${item.id})">➕ Ajouter à Mes recettes</button>`}
-    ${(item.link||item.link2)?`${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 1</a>`:''}${item.link2?`<a href="${esc(item.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center">▶️ Vidéo 2</a>`:''}`:''}
-    <button class="btn ghost" type="button" onclick="closeModal()">Fermer</button>
-  </div>`;
+  document.getElementById('modal').innerHTML=`
+    <div class="row"><button class="btn ghost" onclick="closeModal()">← Retour</button><div class="shop-actions"><button class="btn ghost" onclick="openTestRecipeModal(${item.id})">✏️ Modifier</button><button class="btn danger" style="background:var(--danger)" onclick="deleteTestRecipe(${item.id})">🗑️ Supprimer</button></div></div>
+    ${gallery}
+    <h2 style="font-size:22px;margin-bottom:6px;display:flex;align-items:center;gap:5px">🧪 ${esc(item.name||'Recette')}</h2>
+    <div class="meta">Recette à tester${serv>1?` · ${serv} personnes`:''}</div>
+    ${lines?`<p style="margin:6px 0 4px">${lines}</p>`:''}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 4px"><h3 style="margin:0">Ingrédients</h3></div>
+    <ul class="ingredient-list">${ingredientHtml}</ul>
+    <h3>Préparation</h3><div>${preparation?preparation.split('\n').map(s=>String(s||'').trim()?`<div style="margin:10px 0">${esc(s)}</div>`:'<div style="height:16px"></div>').join(''):'<div class="small">Aucune préparation renseignée.</div>'}</div>
+    ${item.notes?`<h3>Notes</h3><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(item.notes)}</div>`:''}
+    ${(item.link||item.link2)?`<div style="display:grid;gap:8px;margin:14px 0 4px">${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn" style="display:block;text-align:center;text-decoration:none;background:#f9dce5;color:#6b3f4a;border:1px solid #efc1cf;">🎬 Vidéo 1 ↗</a>`:''}${item.link2?`<a href="${esc(item.link2)}" target="_blank" rel="noopener noreferrer" class="btn" style="display:block;text-align:center;text-decoration:none;background:#f9dce5;color:#6b3f4a;border:1px solid #efc1cf;">🎬 Vidéo 2 ↗</a>`:''}</div>`:''}
+    ${cook>0?`<div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="btn purple" onclick="startCookingTimer(${cook},'${encodeURIComponent(item.name||'Recette')}')">⏱️ Lancer le minuteur (${formatDuration(cook)})</button></div>`:''}
+    <div class="actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px"><button class="btn" onclick="addTestRecipeToStock(${item.id})">🧊 Mettre dans le stock</button><button class="btn purple" onclick="openTestRecipeAgenda(${item.id})">📅 Ajouter au calendrier</button></div>
+    <div class="actions" style="justify-content:center;margin-top:14px;padding-bottom:4px;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addTestRecipeToShopping(${item.id})">🛒 Ajouter les ingrédients aux courses</button><button class="btn purple" onclick="addTestRecipeToRecipes(${item.id})">${item.recipeId?'✓ Déjà dans Mes recettes':'➕ Ajouter à Mes recettes'}</button></div>
+    <div class="actions" style="justify-content:center;margin-top:18px;padding-bottom:4px"><button class="btn ghost" onclick="closeModal()">← Retour</button></div>`;
   showModal();
+}
+function addTestRecipeToStock(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id));
+  if(!item)return;
+  const keep=Number(item.keep)||0, keepUnit=item.keepUnit||'jours', keepPlace=item.keepPlace||'Réfrigérateur', serv=Number(item.serv)||1;
+  const img=String(item.image||'');
+  document.getElementById('modal').innerHTML=`<h2>🧊 Mettre ${esc(item.name||'Recette')} dans le stock</h2>${img?`<div id="testStockImage" style="margin-bottom:12px"></div>`:''}<div class="field"><label>Catégorie / emplacement</label><select id="testStockPlace"><option ${keepPlace==='Réfrigérateur'?'selected':''}>Réfrigérateur</option><option ${keepPlace==='Congélateur'?'selected':''}>Congélateur</option><option ${keepPlace==='Placard'?'selected':''}>Placard</option></select></div><div class="field" style="margin-top:10px"><label>Quantité / portions</label><input id="testStockQty" type="number" min="1" value="${serv}"></div><div class="notif" style="margin-top:12px">⏳ Conservation : <b>${keep||0} ${esc(keepUnit)}</b>${keep>0?`<br>📅 Date de fin calculée automatiquement à partir d'aujourd'hui : <b>${fmtDate(addKeepToDate(new Date(),keep,keepUnit).toISOString().slice(0,10))}</b>`:''}</div><div class="actions"><button class="btn ghost" onclick="openTestRecipeDetails(${item.id})">Annuler</button><button class="btn" onclick="saveTestRecipeStock(${item.id})">Ajouter au stock</button></div>`;
+  showModal();
+  if(img)getTestRecipeImage(img).then(src=>{const el=document.getElementById('testStockImage');if(el&&src)el.innerHTML=`<img src="${esc(src)}" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px">`;});
+}
+function saveTestRecipeStock(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id));if(!item)return;
+  const place=document.getElementById('testStockPlace')?.value||'Réfrigérateur';
+  const qty=Math.max(1,Number(document.getElementById('testStockQty')?.value)||1);
+  const keep=Math.max(0,Number(item.keep)||0), keepUnit=item.keepUnit||'jours';
+  let d=new Date();if(keep>0)addKeepToDate(d,keep,keepUnit);
+  state.stock=Array.isArray(state.stock)?state.stock:[];
+  state.stock.push({id:Date.now(),name:item.name||'Recette à tester',place,qty,unit:'x',date:d.toISOString().slice(0,10),keep,keepUnit,emoji:'🍽️',photo:''});
+  save();renderStock();closeModal();toast('Mis dans le stock ✓');
+}
+
+function toggleTestIngredientUsed(id,index,checked){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id));if(!item)return;
+  item.used=item.used||{};item.used[index]=!!checked;save();
+}
+function addTestRecipeToShopping(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id));if(!item)return;
+  const ingredients=getTestRecipeIngredients(item);let added=0;
+  ingredients.forEach(i=>{const name=String(i.text||'').trim();if(!name||name.startsWith('*'))return;const existing=(state.shopping||[]).find(x=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());if(!existing){state.shopping.push({id:Date.now()+Math.floor(Math.random()*100000),name,cat:'Autre',qty:1,price:0,place:'Placard',keep:0,keepUnit:'jours',emoji:productEmoji(name),done:false});added++;}});
+  save();renderShopping();toast(added?`${added} ingrédient(s) ajouté(s) aux courses ✓`:'Les ingrédients sont déjà dans les courses ✓');
 }
 
 async function openTestRecipeModal(id=null){
