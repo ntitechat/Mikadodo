@@ -690,16 +690,10 @@ async function recoverPhotoByKey(key){
   try{
     const bundled=window.MIKADODO_RECOVERY_PHOTOS?.[String(key)];
     if(bundled){
-      const r=await fetch(bundled,{cache:'force-cache'});
-      if(r.ok){
-        const blob=await r.blob();
-        return await new Promise(res=>{
-          const reader=new FileReader();
-          reader.onload=()=>res(reader.result||'');
-          reader.onerror=()=>res('');
-          reader.readAsDataURL(blob);
-        });
-      }
+      // Les photos sont embarquées à côté de index.html.
+      // Retourner directement le chemin relatif fonctionne aussi en file://,
+      // contrairement à fetch(file://...), qui est bloqué sur Android/Chrome.
+      return bundled;
     }
   }catch(e){}
   try{
@@ -760,7 +754,7 @@ async function getPhoto(ref){
     return val;
   }
 }
-function photoSrc(ref){return ref&&photoCache[ref]?photoCache[ref]:''}
+function photoSrc(ref){if(!ref)return '';if(photoCache[ref])return photoCache[ref];if(String(ref).startsWith('idb:'))return window.MIKADODO_RECOVERY_PHOTOS?.[String(ref)]||'';return String(ref)}
 async function migratePhotoField(obj,field){let v=obj?.[field];if(typeof v==='string'&&v.startsWith('data:image/')){obj[field]=await putPhoto(v)}else if(Array.isArray(v)){obj[field]=[];for(const item of v)obj[field].push(typeof item==='string'&&item.startsWith('data:image/')?await putPhoto(item):item)}}
 async function initPhotoStorage(){
   try{
