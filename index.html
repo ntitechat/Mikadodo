@@ -2414,19 +2414,31 @@ async function renderTestRecipes(){
   const imageMap={};
   await Promise.all(list.map(async x=>{if(x.image)imageMap[x.id]=await getTestRecipeImage(x.image);}));
   grid.innerHTML=list.map(x=>{
-    const ingredients=getTestRecipeIngredients(x); const img=imageMap[x.id]||'';
-    return `<article class="card clickable test-recipe-card" style="padding:12px;cursor:pointer" onclick="openTestRecipeDetails(${x.id})">
-      <div class="test-recipe-card-layout">
-        <div class="test-recipe-card-info">
-          <div style="display:flex;align-items:flex-start;gap:9px">
-            <input type="checkbox" ${x.done?'checked':''} onclick="event.stopPropagation();toggleTestRecipeDone(${x.id})" style="width:20px;height:20px;accent-color:var(--purple);margin-top:3px;flex:0 0 auto">
-            <div style="flex:1;min-width:0"><h3 style="margin:0 0 5px;${x.done?'text-decoration:line-through;color:#999':''}">${esc(x.name)}</h3>
-            ${x.notes?`<div style="margin-top:6px"><h4 style="margin:2px 0 4px">📝 Notes</h4><div class="small" style="white-space:pre-wrap">${esc(x.notes)}</div></div>`:''}</div>
-          </div>
-          <div class="actions" style="margin-top:8px;gap:6px;flex-wrap:wrap">${x.recipeId?`<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">✓ Dans Mes recettes</button>`:`<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">➕ Ajouter à Mes recettes</button>`}${(x.link||x.link2)?`${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 1</a>`:''}${x.link2?`<a href="${esc(x.link2)}" target="_blank" rel="noopener noreferrer" class="btn purple mini" style="text-decoration:none;text-align:center" onclick="event.stopPropagation()">▶️ Vidéo 2</a>`:''}`:''}</div>
-        </div>
-        ${img?`<img class="test-recipe-card-image" src="${esc(img)}" alt="" loading="lazy" decoding="async">`:`<div class="recipe-emoji-placeholder">${esc(x.emoji||'🍽️')}</div>`}
+    const img=imageMap[x.id]||'';
+    const prep=Number(x.prep)||0, cook=Number(x.cook)||0;
+    const duration=(prep||cook)?`<div class="meta">${prep?`⏱️ Préparation : ${formatDuration(prep)}`:''}${prep&&cook?' · ':''}${cook?`🔥 Cuisson : ${formatDuration(cook)}`:''}</div>`:'';
+    const cat=String(x.cat||'À tester');
+    const keep=Number(x.keep)||0;
+    const keepUnit=String(x.keepUnit||'jours');
+    const keepPlace=x.keepPlace||'';
+    const keepLine=keepPlace?`<div class="meta">${keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${keep} ${esc(keepUnit)}</div>`:'';
+    const serv=Number(x.serv)||0;
+    const servLine=serv?`${serv} ${esc(x.servUnit||'personnes')}`:'';
+    const cost=Number(x.cost)||0;
+    const moneyLine=(servLine||cost)?`<div class="small">${servLine}${servLine&&cost?' · ':''}${cost?'💰'+recipeMoney(cost):''}</div>`:'';
+    const addButton=x.recipeId
+      ? `<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">✓ Dans Mes recettes</button>`
+      : `<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">➕ Ajouter à Mes recettes</button>`;
+    return `<article class="card recipe-card clickable" onclick="openTestRecipeDetails(${x.id})">
+      <div class="card-body">
+        <h3>${esc(x.name)}</h3>
+        ${duration}
+        <div class="meta">${esc(cat)}</div>
+        ${keepLine}
+        ${moneyLine}
+        <div class="actions" style="justify-content:flex-start;margin-top:8px;gap:6px;flex-wrap:wrap">${addButton}</div>
       </div>
+      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="lazy" decoding="async">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
     </article>`;
   }).join('');
 }
