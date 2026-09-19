@@ -2203,34 +2203,76 @@ async function addTestRecipeToRecipes(id){
 }
 
 async function openTestRecipeDetails(id){
-  const item=state.testRecipes.find(x=>x.id===Number(id));
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id));
   if(!item)return;
   const ingredients=getTestRecipeIngredients(item);
   const preparation=String(item.preparation||item.steps||'');
   const imageSrc=await getTestRecipeImage(item.image||'');
   item.used=item.used||{};
+  const displayIngredients=Array.isArray(item._temporaryScaledIngredients)?item._temporaryScaledIngredients:ingredients.map(x=>x.text);
+  const displayServ=Number(item._temporaryScaledServings)||Number(item.serv)||1;
   const gallery=imageSrc?`<div class="recipe-gallery"><img class="recipe-detail-photo" src="${esc(imageSrc)}" alt="${esc(item.name||'Recette')}" onclick="zoomPhoto(this.src)"></div>`:'';
-  const ingredientHtml=ingredients.length?ingredients.map((i,n)=>`<li class="ingredient-row ${item.used[n]?'used':''}"><input type="checkbox" ${item.used[n]?'checked':''} onchange="toggleTestIngredientUsed(${item.id},${n},this.checked)"><span>${esc(i.text)}${i.shoppingId?` <small style="color:var(--purple);font-weight:700">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(i.shoppingId))?.name||'article lié')}</small>`:''}</span></li>`).join(''):'<li class="ingredient-row"><span>Aucun ingrédient renseigné.</span></li>';
-  const prep=Number(item.prep)||0, cook=Number(item.cook)||0, serv=Number(item.serv)||1;
-  const lines=[prep?`⏱️ Préparation : <b>${formatDuration(prep)}</b>`:'',cook?`🔥 Cuisson : <b>${formatDuration(cook)}</b>`:'',prep+ cook?`⏱️ Total : <b>${formatDuration(prep+cook)}</b>`:''].filter(Boolean).join('<br>');
+  const ingredientHtml=displayIngredients.map((v,n)=>{
+    const text=String(v||'');
+    if(!text.trim())return '<li class="ingredient-row" style="min-height:18px;padding:5px 0"></li>';
+    if(text.trim().startsWith('*'))return `<li class="ingredient-row" style="font-weight:400;padding-left:0"><span>${esc(text.trim().replace(/^\*\s*/,''))}</span></li>`;
+    const original=ingredients[n]||{};
+    return `<li class="ingredient-row ${item.used[n]?'used':''}"><input type="checkbox" ${item.used[n]?'checked':''} onchange="toggleTestIngredientUsed(${item.id},${n},this.checked)"><span>${esc(text)}${original.shoppingId?` <small style="color:var(--purple);font-weight:700">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(original.shoppingId))?.name||'article lié')}</small>`:''}</span></li>`;
+  }).join('')||'<li class="ingredient-row"><span>Aucun ingrédient renseigné.</span></li>';
+  const prep=Number(item.prep)||0, cook=Number(item.cook)||0;
+  const lines=[prep?`⏱️ Préparation : <b>${formatDuration(prep)}</b>`:'',cook?`🔥 Cuisson : <b>${formatDuration(cook)}</b>`:'',prep+cook?`⏱️ Total : <b>${formatDuration(prep+cook)}</b>`:''].filter(Boolean).join('<br>');
+  const unit=item.servUnit||'personnes';
+  const unitLabel=unit==='glacons'?(displayServ===1?'glaçon':'glaçons'):(unit||'personnes');
+  const keep=Number(item.keep)||0, keepUnit=item.keepUnit||'jours', keepPlace=item.keepPlace||'Réfrigérateur';
   document.getElementById('modal').className='modal recipe-detail-modal';
   document.getElementById('modal').innerHTML=`
     <div class="row"><button class="btn ghost" onclick="closeModal()">← Retour</button><div class="shop-actions"><button class="btn ghost" onclick="openTestRecipeModal(${item.id})">✏️ Modifier</button><button class="btn danger" style="background:var(--danger)" onclick="deleteTestRecipe(${item.id})">🗑️ Supprimer</button></div></div>
     ${gallery}
-    <h2 style="font-size:22px;margin-bottom:6px;display:flex;align-items:center;gap:5px">🧪 ${esc(item.name||'Recette')}</h2>
-    <div class="meta">Recette à tester${serv>1?` · ${serv} personnes`:''}</div>
-    ${lines?`<p style="margin:6px 0 4px">${lines}</p>`:''}
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 4px"><h3 style="margin:0">Ingrédients</h3></div>
+    <h2 style="font-size:22px;margin-bottom:6px;display:flex;align-items:center;gap:5px">${esc(item.emoji||'🍽️')} ${esc(item.name||'Recette')}</h2>
+    <div class="meta">${esc(item.cat||'Plat')} · ${esc(String(displayServ))} ${esc(unitLabel)} · 💰${recipeMoney(Number(item.cost)||0)}</div>
+    <p style="margin:6px 0 4px">${lines?lines+'<br>':''}🧊 Conservation : <b>${keep} ${esc(keepUnit)} au ${esc(keepPlace.toLowerCase())}</b></p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 4px"><h3 style="margin:0">Ingrédients</h3><button class="btn ghost" onclick="openTestRecipeScaler(${item.id})" aria-label="Ajuster les quantités" title="Ajuster les quantités">⚖️</button></div>
     <ul class="ingredient-list">${ingredientHtml}</ul>
     <h3>Préparation</h3><div>${preparation?preparation.split('\n').map(s=>String(s||'').trim()?`<div style="margin:10px 0">${esc(s)}</div>`:'<div style="height:16px"></div>').join(''):'<div class="small">Aucune préparation renseignée.</div>'}</div>
-    ${item.notes?`<h3>Notes</h3><div class="small" style="white-space:pre-wrap;line-height:1.5">${esc(item.notes)}</div>`:''}
     ${(item.link||item.link2)?`<div style="display:grid;gap:8px;margin:14px 0 4px">${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn" style="display:block;text-align:center;text-decoration:none;background:#f9dce5;color:#6b3f4a;border:1px solid #efc1cf;">🎬 Vidéo 1 ↗</a>`:''}${item.link2?`<a href="${esc(item.link2)}" target="_blank" rel="noopener noreferrer" class="btn" style="display:block;text-align:center;text-decoration:none;background:#f9dce5;color:#6b3f4a;border:1px solid #efc1cf;">🎬 Vidéo 2 ↗</a>`:''}</div>`:''}
     ${cook>0?`<div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="btn purple" onclick="startCookingTimer(${cook},'${encodeURIComponent(item.name||'Recette')}')">⏱️ Lancer le minuteur (${formatDuration(cook)})</button></div>`:''}
     <div class="actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px"><button class="btn" onclick="addTestRecipeToStock(${item.id})">🧊 Mettre dans le stock</button><button class="btn purple" onclick="openTestRecipeAgenda(${item.id})">📅 Ajouter au calendrier</button></div>
-    <div class="actions" style="justify-content:center;margin-top:14px;padding-bottom:4px;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addTestRecipeToShopping(${item.id})">🛒 Ajouter les ingrédients aux courses</button><button class="btn purple" onclick="addTestRecipeToRecipes(${item.id})">${item.recipeId?'✓ Déjà dans Mes recettes':'➕ Ajouter à Mes recettes'}</button></div>
+    <div class="actions" style="justify-content:center;margin-top:18px;padding-bottom:4px;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addTestRecipeToShopping(${item.id})">🛒 Ajouter les ingrédients aux courses</button><button class="btn purple" onclick="addTestRecipeToRecipes(${item.id})">${item.recipeId?'✓ Déjà dans Mes recettes':'➕ Ajouter à Mes recettes'}</button></div>
     <div class="actions" style="justify-content:center;margin-top:18px;padding-bottom:4px"><button class="btn ghost" onclick="closeModal()">← Retour</button></div>`;
   showModal();
 }
+function openTestRecipeScaler(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id)); if(!item)return;
+  const base=Math.max(1,Number(item.serv)||1), unit=item.servUnit||'personnes';
+  const label=unit==='personnes'?'personne(s)':unit==='glacons'?(base===1?'glaçon':'glaçons'):unit;
+  document.getElementById('modal').className='modal';
+  document.getElementById('modal').innerHTML=`<h2>⚖️ Ajuster les quantités</h2>
+    <div class="field"><label>Nombre de <span id="testRecipeScaleUnit">${esc(label)}</span></label><div class="actions" style="justify-content:flex-start;align-items:center;gap:10px"><button type="button" class="btn ghost" onclick="changeTestRecipeScale(-1,${item.id})">−</button><div id="testRecipeScaleServings" style="min-width:48px;text-align:center;font-size:20px;font-weight:700">${base}</div><button type="button" class="btn ghost" onclick="changeTestRecipeScale(1,${item.id})">+</button></div></div>
+    <div class="notif" style="margin-top:12px">Base : <b>${base} ${esc(label)}</b></div><h3 style="margin-top:16px">Ingrédients</h3><ul id="testRecipeScaledIngredients" class="ingredient-list"></ul>
+    <div class="actions"><button class="btn ghost" onclick="openTestRecipeDetails(${item.id})">Annuler</button><button class="btn" onclick="finishTestRecipeScaler(${item.id})">Terminer</button></div>`;
+  showModal(); previewTestRecipeScale(item.id);
+}
+function changeTestRecipeScale(delta,id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id)); if(!item)return;
+  const base=Math.max(1,Number(item.serv)||1), current=Math.max(1,Number(document.getElementById('testRecipeScaleServings')?.textContent)||base), target=Math.max(1,current+Number(delta||0));
+  const el=document.getElementById('testRecipeScaleServings'); if(el)el.textContent=target;
+  const unit=item.servUnit||'personnes'; const labelEl=document.getElementById('testRecipeScaleUnit'); if(labelEl&&unit==='glacons')labelEl.textContent=target===1?'glaçon':'glaçons';
+  previewTestRecipeScale(id);
+}
+function previewTestRecipeScale(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id)); if(!item)return;
+  const base=Math.max(1,Number(item.serv)||1), target=Math.max(1,Number(document.getElementById('testRecipeScaleServings')?.textContent)||base), factor=target/base;
+  const list=document.getElementById('testRecipeScaledIngredients'); if(!list)return;
+  const ingredients=getTestRecipeIngredients(item); list.innerHTML=ingredients.map(x=>`<li class="ingredient-row"><span>${esc(scaleIngredientLine(x.text,factor))}</span></li>`).join('');
+}
+function finishTestRecipeScaler(id){
+  const item=state.testRecipes.find(x=>Number(x.id)===Number(id)); if(!item)return;
+  const base=Math.max(1,Number(item.serv)||1), target=Math.max(1,Number(document.getElementById('testRecipeScaleServings')?.textContent)||base), factor=target/base;
+  item._temporaryScaledServings=target;
+  item._temporaryScaledIngredients=getTestRecipeIngredients(item).map(x=>scaleIngredientLine(x.text,factor));
+  openTestRecipeDetails(item.id);
+}
+
 function addTestRecipeToStock(id){
   const item=state.testRecipes.find(x=>Number(x.id)===Number(id));
   if(!item)return;
