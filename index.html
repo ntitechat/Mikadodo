@@ -2321,6 +2321,9 @@ async function openTestRecipeModal(id=null){
     <div class="field full"><label>Nom</label><input id="trName" value="${esc(item?.name||'')}" placeholder="Ex. Cookies pistache"></div>
     <div class="field full"><label>🔗 Vidéo 1 — YouTube ou Instagram</label><input id="trLink" type="url" inputmode="url" value="${esc(item?.link||'')}" placeholder="Colle le lien de la première vidéo…"><div class="small">Tu peux enregistrer jusqu’à 2 vidéos par recette.</div></div><div class="field full"><label>🔗 Vidéo 2 — YouTube ou Instagram</label><input id="trLink2" type="url" inputmode="url" value="${esc(item?.link2||'')}" placeholder="Colle le lien de la deuxième vidéo…"></div>
     <div class="field full"><label>🥕 Ingrédients (1 par ligne)</label><textarea id="trIngredients" rows="6" placeholder="1 œuf&#10;100 g de farine&#10;50 g de sucre" oninput="renderTestRecipeIngredientLinks()">${esc(getTestRecipeIngredients(item).map(x=>x.text).join('\n'))}</textarea><div id="testRecipeIngredientLinks"></div></div>
+    <div class="field"><label>⏱️ Temps de préparation (min)</label><input id="trPrep" type="number" min="0" step="1" value="${Number(item?.prep)||0}" oninput="updateTestRecipeTotalTime()"></div>
+    <div class="field"><label>🔥 Temps de cuisson (min)</label><input id="trCook" type="number" min="0" step="1" value="${Number(item?.cook)||0}" oninput="updateTestRecipeTotalTime()"></div>
+    <div class="field full"><div id="trTotalTime" class="notif" style="margin-top:0">⏱️ Temps total : <b>${formatDuration((Number(item?.prep)||0)+(Number(item?.cook)||0))||'0min'}</b></div></div>
     <div class="field full"><label>👩‍🍳 Préparation (1 étape par ligne)</label><textarea id="trPreparation" rows="7" placeholder="1. Mélanger…&#10;2. Cuire…">${esc(item?.preparation||item?.steps||'')}</textarea></div>
     <div class="field full"><label>Notes</label><textarea id="trNotes" rows="3" placeholder="Remarques, modifications, idées…">${esc(item?.notes||'')}</textarea></div>
   </div>
@@ -2343,6 +2346,12 @@ function removeTestRecipeImage(){
   window.testRecipeImageOriginal='';
   const input=document.getElementById('trImage');if(input)input.value='';
   const box=document.getElementById('trImagePreview');if(box)box.innerHTML='';
+}
+function updateTestRecipeTotalTime(){
+  const prep=Math.max(0,Number(document.getElementById('trPrep')?.value)||0);
+  const cook=Math.max(0,Number(document.getElementById('trCook')?.value)||0);
+  const box=document.getElementById('trTotalTime');
+  if(box)box.innerHTML=`⏱️ Temps total : <b>${formatDuration(prep+cook)||'0min'}</b>`;
 }
 
 function openTestRecipeAgenda(id){
@@ -2390,6 +2399,8 @@ async function saveTestRecipe(id){
   const ingredientTexts=String(document.getElementById('trIngredients').value||'').split('\n').map(x=>x.trim()).filter(Boolean);
   const draft=window.testRecipeIngredientDraft||{rows:[]};
   const ingredients=ingredientTexts.map((text,i)=>{const d=draft.rows?.[i]||{};return {text,shoppingId:d.link?.shoppingId||'',qty:Number(d.link?.qty)||0,unit:d.link?.unit||'pieces',link:d.link||{}};});
+  const prep=Math.max(0,Number(document.getElementById('trPrep')?.value)||0);
+  const cook=Math.max(0,Number(document.getElementById('trCook')?.value)||0);
   const preparation=document.getElementById('trPreparation').value.trim();
   const notes=document.getElementById('trNotes').value.trim();
   if(!name)return toast('Indique un nom');
@@ -2399,8 +2410,8 @@ async function saveTestRecipe(id){
   if(window.testRecipeImageDraft instanceof Blob){
     try{image=await putTestRecipeImage(window.testRecipeImageDraft);}catch(e){return toast('Impossible d’enregistrer cette image.');}
   }else if(window.testRecipeImageDraft===''){image='';}
-  if(id){const x=existing;if(x)Object.assign(x,{name,link,link2,ingredients,preparation,notes,image});}
-  else state.testRecipes.unshift({id:Date.now(),name,link,link2,ingredients,preparation,notes,image,done:false});
+  if(id){const x=existing;if(x)Object.assign(x,{name,link,link2,ingredients,prep,cook,preparation,notes,image});}
+  else state.testRecipes.unshift({id:Date.now(),name,link,link2,ingredients,prep,cook,preparation,notes,image,done:false});
   save();closeModal();window.editingTestRecipeId=null;window.testRecipeImageDraft=undefined;renderTestRecipes();toast(id?'Recette à tester modifiée ✨':'Recette à tester ajoutée');
 }
 
@@ -2416,7 +2427,8 @@ async function renderTestRecipes(){
   grid.innerHTML=list.map(x=>{
     const img=imageMap[x.id]||'';
     const prep=Number(x.prep)||0, cook=Number(x.cook)||0;
-    const duration=(prep||cook)?`<div class="meta">${prep?`⏱️ Préparation : ${formatDuration(prep)}`:''}${prep&&cook?' · ':''}${cook?`🔥 Cuisson : ${formatDuration(cook)}`:''}</div>`:'';
+    const total=prep+cook;
+    const duration=(total)?`<div class="meta">${prep?`⏱️ Préparation : ${formatDuration(prep)}`:''}${prep&&cook?' · ':''}${cook?`🔥 Cuisson : ${formatDuration(cook)}`:''} · ⏱️ Total : ${formatDuration(total)}</div>`:'';
     const cat=String(x.cat||'À tester');
     const keep=Number(x.keep)||0;
     const keepUnit=String(x.keepUnit||'jours');
