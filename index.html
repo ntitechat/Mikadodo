@@ -1194,7 +1194,11 @@ async function breakfastDishPhotoData(recipe){
     const src=await getPhoto(ref);
     if(src)return src;
   }
-  return '';
+  // Secours local : si une recette n'a plus sa photo dans IndexedDB,
+  // utilise l'image du projet correspondant à son nom.
+  const n=String(recipe.name||'').toLowerCase();
+  const fallback = n.includes('muffin') ? 'image_032.jpeg' : '';
+  return fallback;
 }
 
 function breakfastDishEscapeText(ctx,text,x,y,maxWidth,font){

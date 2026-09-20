@@ -570,8 +570,8 @@ function loadBreakfastDishImage(src){
 }
 
 
-function breakfastDishPhotoCard(item, label, emoji){
-  const src=breakfastDishPhotoData(item);
+async function breakfastDishPhotoCard(item, label, emoji){
+  const src=await breakfastDishPhotoData(item);
   const name=esc(item?.name||'');
   return `
     <div style="flex:1 1 0;min-width:0;text-align:center;">
@@ -614,9 +614,9 @@ async function createBreakfastDish(){
 
       <div style="background:#FCEFF3;border-radius:24px;padding:14px 12px 18px;box-sizing:border-box;width:100%;">
         <div style="display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:flex-start;width:100%;gap:10px;">
-          ${breakfastDishPhotoCard(items[0],'Laitage','🥛')}
-          ${breakfastDishPhotoCard(items[1],'Féculents','🌾')}
-          ${breakfastDishPhotoCard(items[2],'Fruit','🍎')}
+          ${await breakfastDishPhotoCard(items[0],'Laitage','🥛')}
+          ${await breakfastDishPhotoCard(items[1],'Féculents','🌾')}
+          ${await breakfastDishPhotoCard(items[2],'Fruit','🍎')}
         </div>
       </div>
 
