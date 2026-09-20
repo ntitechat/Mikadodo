@@ -2185,7 +2185,14 @@ async function addTestRecipeToRecipes(id){
   if(!item)return;
   if(item.recipeId){
     const existing=state.recipes.find(r=>Number(r.id)===Number(item.recipeId));
-    if(existing){ openRecipe(existing.id); toast('Cette recette est déjà dans Mes recettes ✓'); return; }
+    if(existing){
+      state.testRecipes=state.testRecipes.filter(x=>Number(x.id)!==Number(id));
+      save();
+      renderTestRecipes();
+      openRecipe(existing.id);
+      toast('Cette recette est déjà dans Mes recettes ✓');
+      return;
+    }
     item.recipeId='';
   }
   const ingredients=getTestRecipeIngredients(item);
@@ -2225,9 +2232,12 @@ async function addTestRecipeToRecipes(id){
   };
   state.recipes.push(recipe);
   item.recipeId=newId;
+  // Une recette ajoutée à « Mes recettes » ne doit plus apparaître dans « Recettes à tester ».
+  state.testRecipes=state.testRecipes.filter(x=>Number(x.id)!==Number(id));
   save();
   closeModal();
   renderRecipes();
+  renderTestRecipes();
   toast('Recette ajoutée à Mes recettes ✨');
   openRecipe(newId);
 }
@@ -2247,7 +2257,7 @@ async function openTestRecipeDetails(id){
     if(!text.trim())return '<li class="ingredient-row" style="min-height:18px;padding:5px 0"></li>';
     if(text.trim().startsWith('*'))return `<li class="ingredient-row" style="font-weight:400;padding-left:0"><span>${esc(text.trim().replace(/^\*\s*/,''))}</span></li>`;
     const original=ingredients[n]||{};
-    return `<li class="ingredient-row ${item.used[n]?'used':''}"><input type="checkbox" ${item.used[n]?'checked':''} onchange="toggleTestIngredientUsed(${item.id},${n},this.checked)"><span>${esc(text)}${original.shoppingId?` <small style="color:var(--purple);font-weight:700">🔗 ${esc((state.shopping||[]).find(s=>String(s.id)===String(original.shoppingId))?.name||'article lié')}</small>`:''}</span></li>`;
+    return `<li class="ingredient-row ${item.used[n]?'used':''}"><input type="checkbox" ${item.used[n]?'checked':''} onchange="toggleTestIngredientUsed(${item.id},${n},this.checked)"><span>${esc(text)}</span></li>`;
   }).join('')||'<li class="ingredient-row"><span>Aucun ingrédient renseigné.</span></li>';
   const prep=Number(item.prep)||0, cook=Number(item.cook)||0;
   const lines=[prep?`⏱️ Préparation : <b>${formatDuration(prep)}</b>`:'',cook?`🔥 Cuisson : <b>${formatDuration(cook)}</b>`:'',prep+cook?`⏱️ Total : <b>${formatDuration(prep+cook)}</b>`:''].filter(Boolean).join('<br>');
@@ -2259,15 +2269,15 @@ async function openTestRecipeDetails(id){
     <div class="row"><button class="btn ghost" onclick="closeModal()">← Retour</button><div class="shop-actions"><button class="btn ghost" onclick="openTestRecipeModal(${item.id})">✏️ Modifier</button><button class="btn danger" style="background:var(--danger)" onclick="deleteTestRecipe(${item.id})">🗑️ Supprimer</button></div></div>
     ${gallery}
     <h2 style="font-size:22px;margin-bottom:6px;display:flex;align-items:center;gap:5px">${esc(item.emoji||'🍽️')} ${esc(item.name||'Recette')}</h2>
-    <div class="meta">${esc(item.cat||'Plat')} · ${esc(String(displayServ))} ${esc(unitLabel)} · 💰${recipeMoney(Number(item.cost)||0)}</div>
-    <p style="margin:6px 0 4px">${lines?lines+'<br>':''}🧊 Conservation : <b>${keep} ${esc(keepUnit)} au ${esc(keepPlace.toLowerCase())}</b></p>
+    <div class="meta">${esc(item.cat||'Plat')} · ${esc(String(displayServ))} ${esc(unitLabel)}</div>
+    <p style="margin:6px 0 4px">${lines||''}</p>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 4px"><h3 style="margin:0">Ingrédients</h3><button class="btn ghost" onclick="openTestRecipeScaler(${item.id})" aria-label="Ajuster les quantités" title="Ajuster les quantités">⚖️</button></div>
     <ul class="ingredient-list">${ingredientHtml}</ul>
     <h3>Préparation</h3><div>${preparation?preparation.split('\n').map(s=>String(s||'').trim()?`<div style="margin:10px 0">${esc(s)}</div>`:'<div style="height:16px"></div>').join(''):'<div class="small">Aucune préparation renseignée.</div>'}</div>
     ${(item.link||item.link2)?`<div style="display:grid;gap:8px;margin:14px 0 4px">${item.link?`<a href="${esc(item.link)}" target="_blank" rel="noopener noreferrer" class="btn" style="display:block;text-align:center;text-decoration:none;background:#f9dce5;color:#6b3f4a;border:1px solid #efc1cf;">🎬 Vidéo 1 ↗</a>`:''}${item.link2?`<a href="${esc(item.link2)}" target="_blank" rel="noopener noreferrer" class="btn" style="display:block;text-align:center;text-decoration:none;background:#f9dce5;color:#6b3f4a;border:1px solid #efc1cf;">🎬 Vidéo 2 ↗</a>`:''}</div>`:''}
     ${cook>0?`<div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="btn purple" onclick="startCookingTimer(${cook},'${encodeURIComponent(item.name||'Recette')}')">⏱️ Lancer le minuteur (${formatDuration(cook)})</button></div>`:''}
     <div class="actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:22px"><button class="btn" onclick="addTestRecipeToStock(${item.id})">🧊 Mettre dans le stock</button><button class="btn purple" onclick="openTestRecipeAgenda(${item.id})">📅 Ajouter au calendrier</button></div>
-    <div class="actions" style="justify-content:center;margin-top:18px;padding-bottom:4px;gap:8px;flex-wrap:wrap"><button class="btn" onclick="addTestRecipeToShopping(${item.id})">🛒 Ajouter les ingrédients aux courses</button><button class="btn purple" onclick="addTestRecipeToRecipes(${item.id})">${item.recipeId?'✓ Déjà dans Mes recettes':'➕ Ajouter à Mes recettes'}</button></div>
+    <div class="actions" style="justify-content:center;margin-top:18px;padding-bottom:4px;gap:8px;flex-wrap:wrap"><button class="btn purple" onclick="addTestRecipeToRecipes(${item.id})">${item.recipeId?'✓ Déjà dans Mes recettes':'➕ Ajouter à Mes recettes'}</button></div>
     <div class="actions" style="justify-content:center;margin-top:18px;padding-bottom:4px"><button class="btn ghost" onclick="closeModal()">← Retour</button></div>`;
   showModal();
 }
@@ -2450,7 +2460,7 @@ function toggleTestRecipeDone(id){const x=state.testRecipes.find(r=>r.id===Numbe
 async function renderTestRecipes(){
   const grid=document.getElementById('testRecipeGrid');if(!grid)return;
   const q=(document.getElementById('testRecipeSearch')?.value||'').toLowerCase().trim();
-  const list=state.testRecipes.filter(x=>!q||String(x.name||'').toLowerCase().includes(q)||(String(x.link||'').toLowerCase().includes(q)||String(x.link2||'').toLowerCase().includes(q))||getTestRecipeIngredients(x).some(i=>i.text.toLowerCase().includes(q)));
+  const list=state.testRecipes.filter(x=>!q||String(x.name||'').toLowerCase().includes(q)||(String(x.link||'').toLowerCase().includes(q)||String(x.link2||'').toLowerCase().includes(q))||getTestRecipeIngredients(x).some(i=>i.text.toLowerCase().includes(q))).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
   if(!list.length){grid.innerHTML='<div class="empty">Aucune recette à tester pour le moment. Ajoute une recette avec son lien YouTube ou Instagram.</div>';return;}
   const imageMap={};
   await Promise.all(list.map(async x=>{if(x.image)imageMap[x.id]=await getTestRecipeImage(x.image);}));
@@ -2458,16 +2468,10 @@ async function renderTestRecipes(){
     const img=imageMap[x.id]||'';
     const prep=Number(x.prep)||0, cook=Number(x.cook)||0;
     const total=prep+cook;
-    const duration=(total)?`<div class="meta">${prep?`⏱️ Préparation : ${formatDuration(prep)}`:''}${prep&&cook?' · ':''}${cook?`🔥 Cuisson : ${formatDuration(cook)}`:''} · ⏱️ Total : ${formatDuration(total)}</div>`:'';
+    const duration=(total)?`<div class="meta">⏱️ Total : ${formatDuration(total)}</div>`:'';
     const cat=String(x.cat||'À tester');
-    const keep=Number(x.keep)||0;
-    const keepUnit=String(x.keepUnit||'jours');
-    const keepPlace=x.keepPlace||'';
-    const keepLine=keepPlace?`<div class="meta">${keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${keep} ${esc(keepUnit)}</div>`:'';
     const serv=Number(x.serv)||0;
     const servLine=serv?`${serv} ${esc(x.servUnit||'personnes')}`:'';
-    const cost=Number(x.cost)||0;
-    const moneyLine=(servLine||cost)?`<div class="small">${servLine}${servLine&&cost?' · ':''}${cost?'💰'+recipeMoney(cost):''}</div>`:'';
     const addButton=x.recipeId
       ? `<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">✓ Dans Mes recettes</button>`
       : `<button class="btn purple mini" type="button" onclick="event.stopPropagation();addTestRecipeToRecipes(${x.id})">➕ Ajouter à Mes recettes</button>`;
@@ -2476,8 +2480,7 @@ async function renderTestRecipes(){
         <h3>${esc(x.name)}</h3>
         ${duration}
         <div class="meta">${esc(cat)}</div>
-        ${keepLine}
-        ${moneyLine}
+        ${servLine?`<div class="small">${servLine}</div>`:''}
         <div class="actions" style="justify-content:flex-start;margin-top:8px;gap:6px;flex-wrap:wrap">${addButton}</div>
       </div>
       <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="eager" decoding="sync">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
