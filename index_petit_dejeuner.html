@@ -282,7 +282,30 @@ let photoCache={};
 function photoDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(PHOTO_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('photos'))r.result.createObjectStore('photos')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 async function putPhoto(dataUrl,id){const db=await photoDB();const key=id||('p_'+Date.now()+'_'+Math.random().toString(36).slice(2));await new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').put(dataUrl,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});photoCache['idb:'+key]=dataUrl;return 'idb:'+key}
 async function getPhoto(ref){if(!ref)return '';if(!String(ref).startsWith('idb:'))return ref;if(photoCache[ref])return photoCache[ref];try{const db=await photoDB();const key=String(ref).slice(4);const val=await new Promise((res,rej)=>{const tx=db.transaction('photos','readonly');const q=tx.objectStore('photos').get(key);q.onsuccess=()=>res(q.result||'');q.onerror=()=>rej(q.error)});if(val)photoCache[ref]=val;return val}catch(e){return ''}}
-function photoSrc(ref){return ref&&photoCache[ref]?photoCache[ref]:''}
+function photoSrc(ref){
+  if(!ref)return '';
+  const s=String(ref).trim();
+  if(!s)return '';
+  if(photoCache[s])return photoCache[s];
+  if(s.startsWith('data:image/'))return s;
+  // Les photos livrées avec le projet peuvent être référencées directement
+  // (ex. image_026.jpeg). Elles ne doivent pas dépendre d'IndexedDB.
+  const normalized=s.replace(/^\.\//,'').replace(/^Mikadodo-main\//,'');
+  if(/^[^/]+\.(jpe?g|png|webp|gif|avif)$/i.test(normalized))return normalized;
+  if(/^(https?:|blob:|data:)/i.test(normalized))return normalized;
+  return s;
+}
+async function preloadRecipePhotos(){
+  const refs=[];
+  for(const r of (state.recipes||[])){
+    for(const ref of (Array.isArray(r.photos)?r.photos:[r.photo])) if(ref) refs.push(photoSrc(ref));
+  }
+  await Promise.all([...new Set(refs)].map(src=>new Promise(resolve=>{
+    const img=new Image();
+    img.onload=img.onerror=()=>resolve();
+    img.src=src;
+  })));
+}
 async function migratePhotoField(obj,field){let v=obj?.[field];if(typeof v==='string'&&v.startsWith('data:image/')){obj[field]=await putPhoto(v)}else if(Array.isArray(v)){obj[field]=[];for(const item of v)obj[field].push(typeof item==='string'&&item.startsWith('data:image/')?await putPhoto(item):item)}}
 async function initPhotoStorage(){try{await photoDB();for(const r of state.recipes){await migratePhotoField(r,'photos');if(typeof r.photo==='string'&&r.photo.startsWith('data:image/'))r.photo=await putPhoto(r.photo);if(!r.photos?.length&&r.photo)r.photos=[r.photo];if(r.photos?.length)r.photo=r.photos[0]}for(const x of state.stock)await migratePhotoField(x,'photo');for(const x of state.agenda)await migratePhotoField(x,'photo');save();for(const r of state.recipes)for(const ref of (r.photos||[]))await getPhoto(ref);for(const x of state.stock)if(x.photo)await getPhoto(x.photo);for(const x of state.agenda)if(x.photo)await getPhoto(x.photo)}catch(e){console.warn('Stockage photos indisponible',e)}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function recipeMoney(n){let v=Number(n)||0;return (Number.isInteger(v)?String(v):v.toFixed(2).replace(/0+$/,'').replace(/\.$/, '').replace('.',','))+'€'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
@@ -1226,7 +1249,7 @@ if('serviceWorker'in navigator){
   navigator.serviceWorker.register('sw.js').then(reg=>reg.update()).catch(()=>{});
 }
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='restart-cooking-timer'){try{const x=JSON.parse(localStorage.getItem('mikadodo-cooking-timer')||'null');if(x&&x.minutes)startCookingTimer(x.minutes,encodeURIComponent(x.name||''));}catch(err){}}});
-initPhotoStorage().then(()=>{renderAll();restoreBackgroundTimer()});
+initPhotoStorage().then(async()=>{await preloadRecipePhotos();renderAll();restoreBackgroundTimer()});
 checkNotifications();
 scheduleNotificationCheck();
 </script>

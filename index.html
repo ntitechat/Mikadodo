@@ -1196,9 +1196,21 @@ async function breakfastDishPhotoData(recipe){
   }
   // Secours local : si une recette n'a plus sa photo dans IndexedDB,
   // utilise l'image du projet correspondant à son nom.
-  const n=String(recipe.name||'').toLowerCase();
-  const fallback = n.includes('muffin') ? 'image_032.jpeg' : '';
-  return fallback;
+  const n=String(recipe.name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  // Secours local robuste : les photos incluses dans le projet restent disponibles
+  // même si la référence de photo enregistrée dans le navigateur a disparu.
+  const fallbacks = [
+    {keys:['muffin','cupcake'], file:'image_032.jpeg'},
+    {keys:['crepe','pancake','blini'], file:'image_026.jpeg'},
+    {keys:['gaufre','waffle'], file:'image_006.jpeg'},
+    {keys:['brownie'], file:'image_024.jpeg'},
+    {keys:['cookie','cookies'], file:'image_025.jpeg'},
+    {keys:['compote'], file:'image_023.jpeg'}
+  ];
+  for(const item of fallbacks){
+    if(item.keys.some(k=>n.includes(k))) return item.file;
+  }
+  return '';
 }
 
 function breakfastDishEscapeText(ctx,text,x,y,maxWidth,font){
