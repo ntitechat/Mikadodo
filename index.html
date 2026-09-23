@@ -601,6 +601,10 @@ let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
  notes:[],
  mealHistory:[]
 };
+state.mealTimes=Object.assign({Matin:'09:00',Midi:'12:00',Soir:'20:00'},state.mealTimes||{});
+state.mealTimes.Matin=normalizeTime(state.mealTimes.Matin,'09:00');
+state.mealTimes.Midi=normalizeTime(state.mealTimes.Midi,'12:00');
+state.mealTimes.Soir=normalizeTime(state.mealTimes.Soir,'20:00');
 state.testRecipes=Array.isArray(state.testRecipes)?state.testRecipes:[];
 state.testRecipes.forEach(x=>{if(!Array.isArray(x.ingredients)&&typeof x.ingredients!=='string')x.ingredients=[];if(!x.preparation)x.preparation=x.steps||'';x.link=x.link||'';x.link2=x.link2||'';});
 const RECIPE_EMOJI_OPTIONS=[
@@ -1389,6 +1393,7 @@ async function addBreakfastDishToAgenda(image){
     const photoRef=await putPhoto(image);
     const today=localDateKey(new Date());
     state.agenda=Array.isArray(state.agenda)?state.agenda:[];
+    const breakfastTime=momentDefaultTime('Matin');
     state.agenda.push({
       id:Date.now()+Math.random(),
       type:'breakfast-dish',
@@ -1396,10 +1401,10 @@ async function addBreakfastDishToAgenda(image){
       name:'Plat',
       date:today,
       moment:'Matin',
-      time:'09:00',
+      time:breakfastTime,
       duration:0,
-      advisedTime:'09:00',
-      notifyTime:'09:00',
+      advisedTime:breakfastTime,
+      notifyTime:breakfastTime,
       photo:photoRef
     });
     save();
@@ -1407,7 +1412,7 @@ async function addBreakfastDishToAgenda(image){
     updateReminder();
     closeBreakfastDishModal();
     switchView('agenda');
-    toast('Petit déjeuner ajouté à l’agenda à 9h ✅');
+    toast(`Petit déjeuner ajouté à l’agenda à ${breakfastTime.replace(':','h')} ✅`);
   }catch(e){
     console.error(e);
     toast('Impossible d’ajouter le plat à l’agenda');
@@ -1781,7 +1786,48 @@ async function saveStock(shopId,editId){
 function localDateKey(d){let y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`}
 function normalizeTime(t,fallback='00:00'){let s=String(t??'').trim();let m=s.match(/^(\d{1,2}):(\d{2})$/);if(!m)return fallback;let h=Number(m[1]),min=Number(m[2]);if(h<0||h>23||min<0||min>59)return fallback;return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`}
 function momentEmoji(moment){return moment==='Matin'?'🌅':moment==='Midi'?'🌞':'🌃'}
-function momentDefaultTime(moment){return moment==='Matin'?'09:00':moment==='Midi'?'12:00':'20:00'}
+function momentDefaultTime(moment){
+  const defaults={Matin:'09:00',Midi:'12:00',Soir:'20:00'};
+  return normalizeTime(state.mealTimes?.[moment],defaults[moment]||'20:00');
+}
+function renderMealTimeSettings(){
+  const el=document.getElementById('mealTimeSettings');
+  if(!el)return;
+  const times=state.mealTimes||{Matin:'09:00',Midi:'12:00',Soir:'20:00'};
+  el.innerHTML=`<div class="form-grid"><div class="field"><label>🌅 Matin</label><input id="settingTimeMatin" type="time" value="${esc(normalizeTime(times.Matin,'09:00'))}"></div><div class="field"><label>🌞 Midi</label><input id="settingTimeMidi" type="time" value="${esc(normalizeTime(times.Midi,'12:00'))}"></div><div class="field"><label>🌃 Soir</label><input id="settingTimeSoir" type="time" value="${esc(normalizeTime(times.Soir,'20:00'))}"></div></div><p class="small" style="margin:8px 0 0">Ces horaires servent de valeurs par défaut pour l’Agenda et le Petit déjeuner. Les repas déjà programmés qui utilisent encore l’ancien horaire par défaut sont mis à jour automatiquement.</p>`;
+}
+function saveMealTimeSettings(){
+  const previous=Object.assign({Matin:'09:00',Midi:'12:00',Soir:'20:00'},state.mealTimes||{});
+  const next={
+    Matin:normalizeTime(document.getElementById('settingTimeMatin')?.value,previous.Matin||'09:00'),
+    Midi:normalizeTime(document.getElementById('settingTimeMidi')?.value,previous.Midi||'12:00'),
+    Soir:normalizeTime(document.getElementById('settingTimeSoir')?.value,previous.Soir||'20:00')
+  };
+  let updated=0;
+  for(const x of (state.agenda||[])){
+    const moment=x.moment;
+    if(!next[moment])continue;
+    const oldTime=normalizeTime(previous[moment]);
+    const newTime=next[moment];
+    if(normalizeTime(x.time)!==oldTime)continue;
+    const duration=Number(x.duration)||0;
+    const oldAdvice=startTime(oldTime,duration);
+    const currentAdvice=normalizeTime(x.advisedTime||x.notifyTime||oldAdvice);
+    const adviceWasAutomatic=currentAdvice===oldAdvice;
+    x.time=newTime;
+    if(adviceWasAutomatic){
+      x.advisedTime=startTime(newTime,duration);
+      x.notifyTime=x.advisedTime;
+    }
+    updated++;
+  }
+  state.mealTimes=next;
+  save();
+  renderMealTimeSettings();
+  renderAgenda();
+  updateReminder();
+  toast(updated?`Horaires enregistrés ✅ · ${updated} repas mis à jour dans l’agenda`:'Horaires enregistrés ✅ · aucun repas existant à modifier');
+}
 function cleanupPastAgenda(){
   const today=localDateKey(new Date());
   const past=state.agenda.filter(x=>x.date&&x.date<today);
@@ -2488,7 +2534,7 @@ async function renderTestRecipes(){
   }).join('');
 }
 
-function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><h3 style="margin:10px 0 6px">🍽️ Historique des repas</h3><div id="mealHistorySettings"></div><h3 style="margin:10px 0 6px">📖 Catégories des recettes</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage des catégories de recettes.</div><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter</button></div><h3 style="margin:10px 0 6px">🛒 Catégories des courses</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage dans Liste de courses.</div><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin:8px 8px 0 0" onclick="exportData()">Exporter toutes mes données</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('importDataInput').click()">Importer mes données</button><input id="importDataInput" type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"><div class="small" style="margin-top:8px">La sauvegarde inclut aussi les photos des recettes, du stock et de l’agenda.</div><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderCategorySettings();renderMealHistorySettings()}
+function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><h3 style="margin:10px 0 6px">🕒 Horaires de l’agenda</h3><div id="mealTimeSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0 12px"><button class="btn purple" onclick="saveMealTimeSettings()">💾 Enregistrer les horaires</button></div><h3 style="margin:10px 0 6px">🍽️ Historique des repas</h3><div id="mealHistorySettings"></div><h3 style="margin:10px 0 6px">📖 Catégories des recettes</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage des catégories de recettes.</div><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter</button></div><h3 style="margin:10px 0 6px">🛒 Catégories des courses</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage dans Liste de courses.</div><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin:8px 8px 0 0" onclick="exportData()">Exporter toutes mes données</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('importDataInput').click()">Importer mes données</button><input id="importDataInput" type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"><div class="small" style="margin-top:8px">La sauvegarde inclut aussi les photos des recettes, du stock et de l’agenda.</div><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderMealTimeSettings();renderCategorySettings();renderMealHistorySettings()}
 function renderCategorySettings(){let r=document.getElementById('recipeCatSettings'),s=document.getElementById('shopCatSettings');if(!r||!s)return;r.innerHTML=state.recipeCategories.map((c,i)=>`<div class="shop-item" style="border:1px solid var(--line);border-radius:9px;margin:3px 0;padding:5px 7px;min-height:34px"><div class="shop-name" style="font-weight:400">${esc(c)}</div><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('recipe',${i},-1)" ${i===0?'disabled':''}>↑</button><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('recipe',${i},1)" ${i===state.recipeCategories.length-1?'disabled':''}>↓</button><button class="btn ghost mini" style="padding:4px 7px" onclick="renameCategory('recipe',${i})">✏️</button><button class="btn ghost mini" style="padding:4px 7px" onclick="deleteCategory('recipe',${i})">🗑️</button></div>`).join('');s.innerHTML=state.shoppingCategories.map((c,i)=>`<div class="shop-item" style="border:1px solid var(--line);border-radius:9px;margin:3px 0;padding:5px 7px;min-height:34px"><div class="shop-name" style="font-weight:400">${esc(c)}</div><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('shopping',${i},-1)" ${i===0?'disabled':''}>↑</button><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('shopping',${i},1)" ${i===state.shoppingCategories.length-1?'disabled':''}>↓</button><button class="btn ghost mini" style="padding:4px 7px" onclick="renameCategory('shopping',${i})">✏️</button><button class="btn ghost mini" style="padding:4px 7px" onclick="deleteCategory('shopping',${i})">🗑️</button></div>`).join('')}
 function moveCategory(type,index,direction){
   let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories;
