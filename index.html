@@ -1438,7 +1438,7 @@ function renderBreakfastRecipes(){
       :`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=breakfastCookableMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="async">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="sync">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
 
   updateBreakfastCookableRecipesButton();
@@ -1514,7 +1514,7 @@ function renderRecipes(){
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=cookableRecipesMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="async">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="sync">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
   updateCookableRecipesButton();
@@ -2513,7 +2513,7 @@ async function renderTestRecipes(){
         ${servLine?`<div class="small">${servLine}</div>`:''}
         <div class="actions" style="justify-content:flex-start;margin-top:8px;gap:6px;flex-wrap:wrap">${addButton}</div>
       </div>
-      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="eager" decoding="async">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
+      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="eager" decoding="sync">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
     </article>`;
   }).join('');
 }
@@ -2525,7 +2525,7 @@ function moveCategory(type,index,direction){
   let target=index+direction;
   if(target<0||target>=arr.length)return;
   [arr[index],arr[target]]=[arr[target],arr[index]];
-  save();renderCurrentView();renderCategorySettings();toast('Ordre des catégories mis à jour');
+  save();renderAll();openSettings();toast('Ordre des catégories mis à jour');
 }
 function addCategory(type){let name=prompt('Nom de la nouvelle catégorie :');if(!name)return;name=name.trim();if(!name)return;let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories;if(arr.some(x=>x.toLowerCase()===name.toLowerCase()))return toast('Cette catégorie existe déjà');arr.push(name);save();renderAll();openSettings();toast('Catégorie ajoutée')}
 function renameCategory(type,index){let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories,old=arr[index];let name=prompt('Nouveau nom de la catégorie :',old);if(!name)return;name=name.trim();if(!name||name===old)return;if(arr.some((x,i)=>i!==index&&x.toLowerCase()===name.toLowerCase()))return toast('Cette catégorie existe déjà');arr[index]=name;if(type==='recipe')state.recipes.forEach(r=>{if(r.cat===old)r.cat=name});else state.shopping.forEach(x=>{if(x.cat===old)x.cat=name});if(activeCat===old)activeCat=name;if(shoppingCatFilter===old)shoppingCatFilter=name;save();renderAll();openSettings();toast('Catégorie modifiée')}
@@ -2639,24 +2639,7 @@ function scheduleNotificationCheck(){
   });
   if(next<Infinity)notificationTimer=setTimeout(()=>{checkNotifications().finally(scheduleNotificationCheck)},Math.max(1000,next-now));
 }
-// Performance: do not rebuild the entire Stock DOM every 5 seconds.
-// Notifications use scheduleNotificationCheck() for precise wake-ups; this
-// lightweight sync only runs once per minute and refreshes the visible view
-// when stock-expiry entries actually changed.
-let periodicSyncTimer=null;
-function runPeriodicSync(){
-  try{
-    const changed=syncStockExpiryAgenda();
-    if(changed){
-      save();
-      if(currentView==='agenda')renderAgenda();
-      else if(currentView==='stock')renderStock();
-      updateReminder();
-    }
-    scheduleNotificationCheck();
-  }catch(e){console.warn('Synchronisation périodique',e)}
-}
-periodicSyncTimer=setInterval(runPeriodicSync,60000);
+setInterval(()=>{if(syncStockExpiryAgenda()){renderAgenda();updateReminder()}renderStock();checkNotifications();scheduleNotificationCheck()},5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkNotifications();scheduleNotificationCheck()}});
 window.addEventListener('focus',()=>{checkNotifications();scheduleNotificationCheck()});
 if('serviceWorker'in navigator){
