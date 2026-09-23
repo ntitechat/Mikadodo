@@ -351,23 +351,6 @@ button.cookable-btn, .cookable-btn, #cookableRecipesBtn {
 }
 </style>
 
-<script>
-(function(){
-  const __courseCategoryOrder = ["Légume","Fruit","Viande/poisson","Légumineuses","Laitage","Congelé","Koro","Japonais","Poudre boisson","Céréales/chocolat","Oléagineux","Ingrédients occasion","Desydrater","Vinaigre/huile","Épice"];
-  function __sortCourseCategories(list){
-    if(!Array.isArray(list)) return list;
-    const rank=new Map(__courseCategoryOrder.map((x,i)=>[x.toLowerCase(),i]));
-    return [...list].sort((a,b)=>{
-      const ra=rank.has(String(a).toLowerCase())?rank.get(String(a).toLowerCase()):9999;
-      const rb=rank.has(String(b).toLowerCase())?rank.get(String(b).toLowerCase()):9999;
-      return ra-rb || String(a).localeCompare(String(b),'fr');
-    });
-  }
-  window.__sortCourseCategories=__sortCourseCategories;
-  window.__courseCategoryOrder=__courseCategoryOrder;
-})();
-</script>
-
 <style id="petit-dejeuner-plus-compact">
 #breakfastGrid .recipe-card {
   min-height: 0;
@@ -650,7 +633,8 @@ let activeBreakfastCategory='Toutes';
 const preferredRecipeCategoryOrder=['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];
 state.recipeCategories=[...preferredRecipeCategoryOrder.filter(c=>state.recipeCategories.includes(c)),...state.recipeCategories.filter(c=>!preferredRecipeCategoryOrder.includes(c))];
 state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:[];
-state.shoppingCategories=[...new Set([...__courseCategoryOrder,...state.shoppingCategories.filter(c=>!__courseCategoryOrder.some(d=>String(d).toLowerCase()===String(c).toLowerCase()))])];
+state.shoppingCategories=[...new Set(state.shoppingCategories.filter(c=>String(c).trim()))];
+if(!state.shoppingCategories.length)state.shoppingCategories=['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];
 state.notes=state.notes||[];
 state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];
 state.shopping.forEach(x=>{x.cat=x.cat||'Autre';x.place=x.place||'Placard';x.keep=Number(x.keep)||0;x.keepUnit=x.keepUnit||'jours';x.emoji=x.emoji||productEmoji(x.name)});
@@ -1454,7 +1438,7 @@ function renderBreakfastRecipes(){
       :`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=breakfastCookableMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="sync">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy" decoding="async">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
 
   updateBreakfastCookableRecipesButton();
@@ -1530,7 +1514,7 @@ function renderRecipes(){
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=cookableRecipesMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="sync">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy" decoding="async">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
   updateCookableRecipesButton();
@@ -2529,7 +2513,7 @@ async function renderTestRecipes(){
         ${servLine?`<div class="small">${servLine}</div>`:''}
         <div class="actions" style="justify-content:flex-start;margin-top:8px;gap:6px;flex-wrap:wrap">${addButton}</div>
       </div>
-      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="eager" decoding="sync">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
+      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="lazy" decoding="async">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
     </article>`;
   }).join('');
 }
@@ -2541,7 +2525,7 @@ function moveCategory(type,index,direction){
   let target=index+direction;
   if(target<0||target>=arr.length)return;
   [arr[index],arr[target]]=[arr[target],arr[index]];
-  save();renderAll();openSettings();toast('Ordre des catégories mis à jour');
+  save();renderCurrentView();renderCategorySettings();toast('Ordre des catégories mis à jour');
 }
 function addCategory(type){let name=prompt('Nom de la nouvelle catégorie :');if(!name)return;name=name.trim();if(!name)return;let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories;if(arr.some(x=>x.toLowerCase()===name.toLowerCase()))return toast('Cette catégorie existe déjà');arr.push(name);save();renderAll();openSettings();toast('Catégorie ajoutée')}
 function renameCategory(type,index){let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories,old=arr[index];let name=prompt('Nouveau nom de la catégorie :',old);if(!name)return;name=name.trim();if(!name||name===old)return;if(arr.some((x,i)=>i!==index&&x.toLowerCase()===name.toLowerCase()))return toast('Cette catégorie existe déjà');arr[index]=name;if(type==='recipe')state.recipes.forEach(r=>{if(r.cat===old)r.cat=name});else state.shopping.forEach(x=>{if(x.cat===old)x.cat=name});if(activeCat===old)activeCat=name;if(shoppingCatFilter===old)shoppingCatFilter=name;save();renderAll();openSettings();toast('Catégorie modifiée')}
@@ -2567,7 +2551,7 @@ function showNotificationHelp(message){
  document.getElementById('modal').innerHTML=`<h2>🔔 Notifications</h2><p>${esc(message)}</p><div class="notif"><b>Sur Android / Chrome :</b><br>ouvre les informations du site → <b>Autorisations</b> → <b>Notifications</b> → <b>Autoriser</b>.</div><div class="notif"><b>Sur iPhone / iPad :</b><br>si Mikadodo est installé sur l’écran d’accueil, vérifie les réglages de notifications de l’app. Les notifications Web nécessitent une version compatible d’iOS/iPadOS.</div><p class="small">Une fois l’autorisation donnée, reviens dans Mikadodo et appuie à nouveau sur « Activer les notifications ».</p><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();
 }
 async function exportData(){try{let backup={version:2,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state)),photos:{}};let refs=[];for(const r of backup.state.recipes||[]){for(const ref of (r.photos||[]))if(String(ref).startsWith('idb:'))refs.push(ref);if(String(r.photo||'').startsWith('idb:'))refs.push(r.photo)}for(const x of backup.state.stock||[])if(String(x.photo||'').startsWith('idb:'))refs.push(x.photo);for(const x of backup.state.agenda||[])if(String(x.photo||'').startsWith('idb:'))refs.push(x.photo);refs=[...new Set(refs)];for(const ref of refs){const data=await getPhoto(ref);if(data)backup.photos[ref]=data}let blob=new Blob([JSON.stringify(backup)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mikadodo-sauvegarde-complete.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Sauvegarde complète créée ✅')}catch(e){console.error(e);toast('Impossible de créer la sauvegarde')}}
-async function importData(input){let file=input?.files?.[0];if(!file)return;try{let text=await file.text(),raw=JSON.parse(text),incoming=raw?.state&&typeof raw.state==='object'?raw.state:raw;if(!incoming||!Array.isArray(incoming.recipes)||!Array.isArray(incoming.stock)||!Array.isArray(incoming.shopping))throw new Error('Format de sauvegarde invalide');if(!confirm('Importer cette sauvegarde ? Les données actuellement présentes sur cette tablette seront remplacées.')){input.value='';return}state=incoming;state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];state.shoppingCategories=Array.from(new Set([...__courseCategoryOrder,...state.shoppingCategories.filter(c=>!__courseCategoryOrder.some(d=>String(d).toLowerCase()===String(c).toLowerCase()))]));state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];for(const r of state.recipes){r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes';r.recipeEmoji=RECIPE_EMOJI_OPTIONS.some(x=>x.id===r.recipeEmoji)?r.recipeEmoji:'none'}for(const x of state.stock||[])x.photo=x.photo||'';for(const x of state.agenda||[]){x.advisedTime=x.advisedTime||x.notifyTime||startTime(x.time,x.duration||0);x.notifyTime=x.advisedTime}let photos=raw?.photos||{};for(const [ref,data] of Object.entries(photos)){if(String(ref).startsWith('idb:')&&typeof data==='string')await putPhoto(data,String(ref).slice(4))}photoCache={};save();for(const r of state.recipes)for(const ref of (r.photos||[]))if(String(ref).startsWith('idb:'))await getPhoto(ref);for(const x of state.stock||[])if(String(x.photo).startsWith('idb:'))await getPhoto(x.photo);for(const x of state.agenda||[])if(String(x.photo).startsWith('idb:'))await getPhoto(x.photo);closeModal();renderAll();toast('Données importées avec leurs photos ✅')}catch(e){console.error(e);toast('Import impossible : fichier invalide')}finally{if(input)input.value=''}}
+async function importData(input){let file=input?.files?.[0];if(!file)return;try{let text=await file.text(),raw=JSON.parse(text),incoming=raw?.state&&typeof raw.state==='object'?raw.state:raw;if(!incoming||!Array.isArray(incoming.recipes)||!Array.isArray(incoming.stock)||!Array.isArray(incoming.shopping))throw new Error('Format de sauvegarde invalide');if(!confirm('Importer cette sauvegarde ? Les données actuellement présentes sur cette tablette seront remplacées.')){input.value='';return}state=incoming;state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?[...new Set(state.shoppingCategories.filter(c=>String(c).trim()))]:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];for(const r of state.recipes){r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes';r.recipeEmoji=RECIPE_EMOJI_OPTIONS.some(x=>x.id===r.recipeEmoji)?r.recipeEmoji:'none'}for(const x of state.stock||[])x.photo=x.photo||'';for(const x of state.agenda||[]){x.advisedTime=x.advisedTime||x.notifyTime||startTime(x.time,x.duration||0);x.notifyTime=x.advisedTime}let photos=raw?.photos||{};for(const [ref,data] of Object.entries(photos)){if(String(ref).startsWith('idb:')&&typeof data==='string')await putPhoto(data,String(ref).slice(4))}photoCache={};save();for(const r of state.recipes)for(const ref of (r.photos||[]))if(String(ref).startsWith('idb:'))await getPhoto(ref);for(const x of state.stock||[])if(String(x.photo).startsWith('idb:'))await getPhoto(x.photo);for(const x of state.agenda||[])if(String(x.photo).startsWith('idb:'))await getPhoto(x.photo);closeModal();renderAll();toast('Données importées avec leurs photos ✅')}catch(e){console.error(e);toast('Import impossible : fichier invalide')}finally{if(input)input.value=''}}
 function removeMealHistory(id){state.mealHistory=state.mealHistory||[];state.mealHistory=state.mealHistory.filter(x=>x.id!==id);save();renderMealHistorySettings();toast('Repas supprimé de l’historique')}
 function renderMealHistorySettings(){let el=document.getElementById('mealHistorySettings');if(!el)return;let consumed=(state.mealHistory||[]).map(x=>({...x,consumed:true}));let history=[...consumed].sort((a,b)=>(b.date+' '+normalizeTime(b.time)).localeCompare(a.date+' '+normalizeTime(a.time)));el.innerHTML=history.length?history.map(x=>`<div class="shop-item" style="padding:8px 0;border-bottom:1px solid var(--line);gap:8px"><div class="shop-name"><span>${esc(x.name)}</span><div class="small">${esc(new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long'}))} · ${esc(normalizeTime(x.time).replace(':','h'))}${x.consumed?' · ✅ Consommé':''}</div></div>${x.consumed?`<button class="btn ghost mini" style="padding:4px 7px" onclick="removeMealHistory(${x.id})">🗑️</button>`:''}</div>`).join(''):'<div class="empty">Aucun repas dans l’historique pour le moment. 🍽️</div>'}
 function renderNotes(){let el=document.getElementById('notesList');if(!el)return;let total=state.notes.reduce((sum,n)=>sum+(Number(n.qty)||1)*(Number(n.price)||0),0);el.innerHTML=`<div class="shopping-summary"><div class="summary"><small>Total achats</small><strong>${shopMoney(total)}</strong></div></div>`+(state.notes.length?state.notes.map(n=>`<div class="note-item ${n.done?'done':''} clickable" onclick="openNoteEdit(${n.id})" title="Cliquer pour modifier"><input type="checkbox" ${n.done?'checked':''} onclick="event.stopPropagation()" onchange="toggleNote(${n.id})"><span>${n.emoji||productEmoji(n.text)} ${esc(n.text)}${Number(n.qty||1)>1?` × ${esc(String(n.qty))}`:''}</span><span class="shop-price">${shopMoney((Number(n.qty)||1)*(Number(n.price)||0))}</span><button class="btn ghost mini" onclick="event.stopPropagation();removeNote(${n.id})">×</button></div>`).join(''):'<div class="empty">Aucun achat pour le moment. 🌷</div>') }
@@ -2655,7 +2639,24 @@ function scheduleNotificationCheck(){
   });
   if(next<Infinity)notificationTimer=setTimeout(()=>{checkNotifications().finally(scheduleNotificationCheck)},Math.max(1000,next-now));
 }
-setInterval(()=>{if(syncStockExpiryAgenda()){renderAgenda();updateReminder()}renderStock();checkNotifications();scheduleNotificationCheck()},5000);
+// Performance: do not rebuild the entire Stock DOM every 5 seconds.
+// Notifications use scheduleNotificationCheck() for precise wake-ups; this
+// lightweight sync only runs once per minute and refreshes the visible view
+// when stock-expiry entries actually changed.
+let periodicSyncTimer=null;
+function runPeriodicSync(){
+  try{
+    const changed=syncStockExpiryAgenda();
+    if(changed){
+      save();
+      if(currentView==='agenda')renderAgenda();
+      else if(currentView==='stock')renderStock();
+      updateReminder();
+    }
+    scheduleNotificationCheck();
+  }catch(e){console.warn('Synchronisation périodique',e)}
+}
+periodicSyncTimer=setInterval(runPeriodicSync,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){checkNotifications();scheduleNotificationCheck()}});
 window.addEventListener('focus',()=>{checkNotifications();scheduleNotificationCheck()});
 if('serviceWorker'in navigator){
