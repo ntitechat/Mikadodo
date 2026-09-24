@@ -793,6 +793,16 @@ function preloadLocalPhotos(){
 }
 function photoSrc(ref){if(!ref)return '';if(photoCache[ref])return photoCache[ref];if(String(ref).startsWith('idb:'))return window.MIKADODO_RECOVERY_PHOTOS?.[String(ref)]||'';return String(ref)}
 async function migratePhotoField(obj,field){let v=obj?.[field];if(typeof v==='string'&&v.startsWith('data:image/')){obj[field]=await putPhoto(v)}else if(Array.isArray(v)){obj[field]=[];for(const item of v)obj[field].push(typeof item==='string'&&item.startsWith('data:image/')?await putPhoto(item):item)}}
+function prioritizeVisibleImages(){
+  const imgs=[...document.querySelectorAll('.view.active img, .modal.show img, .modal-back.show img')];
+  imgs.slice(0,6).forEach((img,i)=>{
+    try{
+      img.loading='eager';
+      img.decoding='async';
+      if('fetchPriority' in img) img.fetchPriority=i<3?'high':'auto';
+    }catch(e){}
+  });
+}
 async function initPhotoStorage(){
   try{
     await requestDurablePhotoStorage();
@@ -835,6 +845,7 @@ function renderCurrentView(){
     else if(currentView==='testRecipes') renderTestRecipes();
     else if(currentView==='notes') renderNotes();
     updateReminder();
+    requestAnimationFrame(prioritizeVisibleImages);
   }catch(e){ console.error('Erreur d’affichage de la vue',currentView,e); }
 }
 function applyView(v){
@@ -1438,7 +1449,7 @@ function renderBreakfastRecipes(){
       :`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=breakfastCookableMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="sync">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy" decoding="async">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
 
   updateBreakfastCookableRecipesButton();
@@ -1514,7 +1525,7 @@ function renderRecipes(){
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=cookableRecipesMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="sync">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy" decoding="async">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
   updateCookableRecipesButton();
@@ -2537,7 +2548,7 @@ async function renderTestRecipes(){
         ${servLine?`<div class="small">${servLine}</div>`:''}
         <div class="actions" style="justify-content:flex-start;margin-top:8px;gap:6px;flex-wrap:wrap">${addButton}</div>
       </div>
-      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="eager" decoding="sync">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
+      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="lazy" decoding="async">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
     </article>`;
   }).join('');
 }
@@ -2670,7 +2681,12 @@ if('serviceWorker'in navigator){
   navigator.serviceWorker.register('sw.js').then(reg=>reg.update()).catch(()=>{});
 }
 navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type==='restart-cooking-timer'){try{const x=JSON.parse(localStorage.getItem('mikadodo-cooking-timer')||'null');if(x&&x.minutes)startCookingTimer(x.minutes,encodeURIComponent(x.name||''));}catch(err){}}});
-initPhotoStorage().then(()=>{preloadLocalPhotos();renderAll();restoreBackgroundTimer();setTimeout(()=>warmPhotoCache().catch(()=>{}),100)});
+// Afficher l'interface immédiatement : le stockage photo/migration se fait en arrière-plan.
+preloadLocalPhotos();
+renderAll();
+restoreBackgroundTimer();
+requestAnimationFrame(()=>prioritizeVisibleImages());
+initPhotoStorage().then(()=>{preloadLocalPhotos(); prioritizeVisibleImages();}).catch(()=>{});
 checkNotifications();
 scheduleNotificationCheck();
 </script>
