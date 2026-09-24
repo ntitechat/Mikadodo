@@ -658,7 +658,33 @@ function photoDB(){return new Promise((resolve,reject)=>{
   r.onsuccess=()=>{requestDurablePhotoStorage();resolve(r.result)};
   r.onerror=()=>reject(r.error)
 })}
-async function putPhoto(dataUrl,id){const db=await photoDB();const key=id||('p_'+Date.now()+'_'+Math.random().toString(36).slice(2));await new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').put(dataUrl,key);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});photoCache['idb:'+key]=dataUrl;return 'idb:'+key}
+async function putPhoto(photo,id){
+  const db=await photoDB();
+  const key=id||('p_'+Date.now()+'_'+Math.random().toString(36).slice(2));
+  // Stockage binaire : beaucoup plus rapide que convertir chaque nouvelle photo
+  // en grosse chaîne base64. On crée aussi immédiatement une URL mémoire pour
+  // que l'image nouvellement téléchargée puisse s'afficher sans attendre une
+  // nouvelle lecture IndexedDB.
+  let stored=photo, objectUrl='';
+  if(photo instanceof Blob){
+    objectUrl=URL.createObjectURL(photo);
+  }else if(typeof photo==='string' && photo.startsWith('data:image/')){
+    try{
+      const res=await fetch(photo);
+      stored=await res.blob();
+      objectUrl=URL.createObjectURL(stored);
+    }catch(e){stored=photo; objectUrl=photo;}
+  }
+  await new Promise((res,rej)=>{
+    const tx=db.transaction('photos','readwrite');
+    tx.objectStore('photos').put(stored,key);
+    tx.oncomplete=res;
+    tx.onerror=()=>rej(tx.error)
+  });
+  db.close();
+  photoCache['idb:'+key]=objectUrl||stored;
+  return 'idb:'+key
+}
 async function putTestRecipeImage(file,id){
   if(!file)return '';
   const db=await photoDB();
@@ -702,6 +728,9 @@ async function readPhotoFromDb(db,key){
   for(const store of Array.from(db.objectStoreNames||[])){
     try{
       const val=await new Promise((res,rej)=>{const tx=db.transaction(store,'readonly');const q=tx.objectStore(store).get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
+      if(val instanceof Blob){
+        try{return URL.createObjectURL(val)}catch(e){}
+      }
       const photo=await normalizeStoredPhoto(val);
       if(photo)return photo;
     }catch(e){}
@@ -799,7 +828,7 @@ function prioritizeVisibleImages(){
     try{
       img.loading='eager';
       img.decoding='async';
-      if('fetchPriority' in img) img.fetchPriority=i<3?'high':'auto';
+      if('fetchPriority' in img) img.fetchPriority=i<8?'high':'auto';
     }catch(e){}
   });
 }
@@ -825,10 +854,9 @@ async function warmPhotoCache(){
   for(const r of state.recipes||[])for(const ref of (r.photos||[]))add(ref);
   for(const x of state.stock||[])add(x.photo);
   for(const x of state.agenda||[])add(x.photo);
-  // Load in small batches after the interface is already visible.
-  for(let i=0;i<refs.length;i+=4){
-    await Promise.all(refs.slice(i,i+4).map(getPhoto));
-    if(i%16===0)renderCurrentView();
+  // Warm remaining IndexedDB photos in small batches without repeatedly rebuilding the UI.
+  for(let i=0;i<refs.length;i+=8){
+    await Promise.all(refs.slice(i,i+8).map(getPhoto));
   }
   renderCurrentView();
 }
@@ -1449,7 +1477,7 @@ function renderBreakfastRecipes(){
       :`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=breakfastCookableMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy" decoding="async">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${breakfastCookableMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">${breakfastTypeBadges(r)}</div><div class="meta">Petit-déjeuner · ${esc(r.breakfastCategory||'À classer')}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="async" fetchpriority="high">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette dans cette catégorie.</div>';
 
   updateBreakfastCookableRecipesButton();
@@ -1525,7 +1553,7 @@ function renderRecipes(){
     const availability=av?(av.missing===0?`<div class="recipe-availability complete">✅ Tu peux la faire !</div>`:`<div class="recipe-availability missing clickable" onclick="event.preventDefault();event.stopPropagation();showRecipeMissingIngredients(${r.id});return false" title="Afficher les ingrédients à acheter">🛒 ${av.have}/${av.total} ingrédients · il en manque ${av.missing}</div>`):'';
     const stockLabel=cookableRecipesMode>0?recipeStockLocationLabel(r):'';
     const stockLine=stockLabel?`<div class="cookable-stock-line">🔵 ${stockLabel}</div>`:'';
-    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="lazy" decoding="async">`:''}</div></article>`;
+    return `<article class="card recipe-card clickable" onclick="openRecipe(${r.id}, ${cookableRecipesMode>0 ? 'true' : 'false'})"><div class="card-body"><h3>${esc(r.name)}</h3>${durationMeta(r)?`<div class="meta">${durationMeta(r)}</div>`:''}<div class="meta">${esc(r.cat)}</div><div class="meta">${r.keepPlace==='Réfrigérateur'?'🧊 Réfrigérateur':r.keepPlace==='Congélateur'?'❄️ Congélateur':'🏠 Placard'} ${r.keep||0} ${esc(r.keepUnit||((Number(r.keep)||0)===1?'jour':'jours'))}</div><div class="small">${servingMeta(r)} · 💰${recipeMoney(r.cost)}</div>${stockLine}${availability}</div><div class="recipe-photo ${photoSrc(r.photos?.[0])?'':'recipe-emoji-photo'}">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" loading="eager" decoding="async" fetchpriority="high">`:''}</div></article>`;
   }).join(''):'<div class="empty">Aucune recette ne correspond aux ingrédients de ta liste de courses.</div>';
 
   updateCookableRecipesButton();
@@ -1749,7 +1777,21 @@ function linkExistingStockAndAgendaToRecipes(){
   }
   if(changed)save();
 }
-function renderStock(){let q=(document.getElementById('stockSearch')?.value||'').toLowerCase();let groups=['Réfrigérateur','Congélateur','Placard'];document.getElementById('stockList').innerHTML=groups.filter(g=>stockFilter==='all'||g===stockFilter).map(g=>{let a=state.stock.filter(x=>x.place===g&&x.name.toLowerCase().includes(q));if(!a.length)return '';return `<div class="stock-group"><div class="stock-title"><span>${g==='Congélateur'?'❄️':g==='Réfrigérateur'?'🧊':'🏠'} ${g}</span><span>${a.length}</span></div>${a.map(x=>{let days=daysLeft(x.date),cl=days<=1?'danger':days<=3?'warn':'';return `<div class="stock-item clickable" onclick="openStockEdit(${x.id})">${photoSrc(linkedRecipePhotoRef(x))?`<img src="${photoSrc(linkedRecipePhotoRef(x))}" style="width:56px;height:56px;border-radius:14px;object-fit:cover">`:`<div class="stock-icon">${x.emoji||'📦'}</div>`}<div class="stock-info"><strong>${esc(x.name)}</strong><span class="stock-meta-line stock-date-line">DDM/DLC : <span class="stock-date">${fmtStockDate(x.date)}</span></span><span class="stock-meta-line stock-details-line"><span class="stock-qty">${x.qty} ${stockUnitLabel(x.qty,x.unit||'x')}</span>${x.keep?` · <span class="stock-keep">Conservation ${x.keep} ${['jours','jour'].includes(String(x.keepUnit||'').toLowerCase())?(Number(x.keep)===1?'jour':'jours'):(['années','année'].includes(String(x.keepUnit||'').toLowerCase())?(Number(x.keep)===1?'année':'années'):x.keepUnit)}</span>`:''}</span></div><span class="pill ${cl}">${days<0?'Dépassé':days===0?'Aujourd’hui':days+' jour'+(days>1?'s':'')}</span><div class="shop-actions"><button class="btn ghost" onclick="event.stopPropagation();consumeStock(${x.id})">−</button></div></div>`}).join('')}</div>`}).join('')||'<div class="empty">Ton stock est vide.</div>'}
+function stockRecipesForItem(stockItem){
+  if(!stockItem)return [];
+  return (Array.isArray(state.recipes)?state.recipes:[]).filter(r=>
+    (Array.isArray(r.ingredients)?r.ingredients:[]).some(ingredient=>recipeIngredientMatchesStock(String(ingredient||''),String(stockItem.name||'')))
+  );
+}
+function showStockRecipes(stockId){
+  const item=(state.stock||[]).find(x=>Number(x.id)===Number(stockId));
+  if(!item)return;
+  const recipes=stockRecipesForItem(item);
+  document.getElementById('modal').className='modal';
+  document.getElementById('modal').innerHTML=`<div class="row"><button class="btn ghost" onclick="closeModal()">← Retour</button><button class="btn ghost" onclick="openStockEdit(${item.id})">✏️ Modifier</button></div><h2 style="margin-bottom:6px">🍽️ Recettes avec ${esc(item.name)}</h2><div class="small" style="margin-bottom:14px">${recipes.length?`${recipes.length} recette${recipes.length>1?'s':''} trouvée${recipes.length>1?'s':''}.`:'Aucune recette trouvée avec cet ingrédient.'}</div>${recipes.length?`<div style="display:grid;gap:9px">${recipes.map(r=>`<button type="button" class="card clickable" style="width:100%;text-align:left;border:1px solid var(--line);padding:0;overflow:hidden;background:#fff" onclick="openRecipe(${r.id})"><div style="display:flex;align-items:center;gap:10px;padding:10px 12px">${photoSrc(r.photos?.[0])?`<img src="${photoSrc(r.photos[0])}" alt="" style="width:58px;height:52px;border-radius:12px;object-fit:cover;flex:none">`:`<div class="stock-icon" style="width:58px;height:52px">${recipeEmojiMarkup(r,'')}</div>`}<span style="font-weight:800;flex:1">${esc(r.name)}</span><span style="font-size:20px">›</span></div></button>`).join('')}</div>`:''}<div class="actions" style="justify-content:center;margin-top:18px"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;
+  showModal();
+}
+function renderStock(){let q=(document.getElementById('stockSearch')?.value||'').toLowerCase();let groups=['Réfrigérateur','Congélateur','Placard'];document.getElementById('stockList').innerHTML=groups.filter(g=>stockFilter==='all'||g===stockFilter).map(g=>{let a=state.stock.filter(x=>x.place===g&&x.name.toLowerCase().includes(q));if(!a.length)return '';return `<div class="stock-group"><div class="stock-title"><span>${g==='Congélateur'?'❄️':g==='Réfrigérateur'?'🧊':'🏠'} ${g}</span><span>${a.length}</span></div>${a.map(x=>{let days=daysLeft(x.date),cl=days<=1?'danger':days<=3?'warn':'',recipeCount=stockRecipesForItem(x).length;return `<div class="stock-item clickable" onclick="openStockEdit(${x.id})">${photoSrc(linkedRecipePhotoRef(x))?`<img src="${photoSrc(linkedRecipePhotoRef(x))}" style="width:56px;height:56px;border-radius:14px;object-fit:cover">`:`<div class="stock-icon">${x.emoji||'📦'}</div>`}<div class="stock-info"><strong>${esc(x.name)}</strong><span class="stock-meta-line stock-date-line">DDM/DLC : <span class="stock-date">${fmtStockDate(x.date)}</span></span><span class="stock-meta-line stock-details-line"><span class="stock-qty">${x.qty} ${stockUnitLabel(x.qty,x.unit||'x')}</span>${x.keep?` · <span class="stock-keep">Conservation ${x.keep} ${['jours','jour'].includes(String(x.keepUnit||'').toLowerCase())?(Number(x.keep)===1?'jour':'jours'):(['années','année'].includes(String(x.keepUnit||'').toLowerCase())?(Number(x.keep)===1?'année':'années'):x.keepUnit)}</span>`:''}</span></div><span class="pill ${cl}">${days<0?'Dépassé':days===0?'Aujourd’hui':days+' jour'+(days>1?'s':'')}</span><div class="shop-actions"><button class="btn purple mini" onclick="event.stopPropagation();showStockRecipes(${x.id})">🍽️ Recette${recipeCount>1?'s':''}</button><button class="btn ghost" onclick="event.stopPropagation();consumeStock(${x.id})">−</button></div></div>`}).join('')}</div>`}).join('')||'<div class="empty">Ton stock est vide.</div>'}
 function openStockEdit(id){let x=state.stock.find(s=>s.id===id);if(!x)return;openStockModal({...x,editId:id})}
 
 function daysLeft(s){let a=new Date();a.setHours(0,0,0,0);let b=new Date(s);b.setHours(0,0,0,0);return Math.ceil((b-a)/86400000)}
@@ -2077,7 +2119,22 @@ function removeRecipePhoto(id,index){
   if(document.getElementById('rphotoPreviewWrap')) previewRecipeImages({target:document.getElementById('rphoto')});
   toast('Photo retirée de la recette');
 }
-function resizeRecipeImage(file){return new Promise((resolve,reject)=>{if(!file)return resolve('');let reader=new FileReader();reader.onload=()=>{let im=new Image();im.onload=()=>{let max=1000,w=im.width,h=im.height;if(Math.max(w,h)>max){if(w>=h){h=Math.round(h*max/w);w=max}else{w=Math.round(w*max/h);h=max}}let c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);resolve(c.toDataURL('image/jpeg',0.78))};im.onerror=reject;im.src=reader.result};reader.onerror=reject;reader.readAsDataURL(file)})}
+function resizeRecipeImage(file){return new Promise((resolve,reject)=>{
+  if(!file)return resolve(null);
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const im=new Image();
+    im.onload=()=>{
+      let max=1000,w=im.width,h=im.height;
+      if(Math.max(w,h)>max){if(w>=h){h=Math.round(h*max/w);w=max}else{w=Math.round(w*max/h);h=max}}
+      const c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(im,0,0,w,h);
+      c.toBlob(blob=>resolve(blob||file),'image/jpeg',0.78);
+    };
+    im.onerror=reject;im.src=reader.result;
+  };
+  reader.onerror=reject;reader.readAsDataURL(file);
+})}
 async function saveRecipe(editId){
   let name=document.getElementById('rn').value.trim(); if(!name)return toast('Indique un nom');
   const video1=String(document.getElementById('rvideo')?.value||'').trim(), video2=String(document.getElementById('rvideo2')?.value||'').trim();
@@ -2548,7 +2605,7 @@ async function renderTestRecipes(){
         ${servLine?`<div class="small">${servLine}</div>`:''}
         <div class="actions" style="justify-content:flex-start;margin-top:8px;gap:6px;flex-wrap:wrap">${addButton}</div>
       </div>
-      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="lazy" decoding="async">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
+      <div class="recipe-photo ${img?'':'recipe-emoji-photo'}">${img?`<img src="${esc(img)}" alt="" loading="eager" decoding="async" fetchpriority="high">`:`<span aria-hidden="true">${esc(x.emoji||'🍽️')}</span>`}</div>
     </article>`;
   }).join('');
 }
