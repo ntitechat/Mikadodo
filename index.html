@@ -2686,7 +2686,7 @@ preloadLocalPhotos();
 renderAll();
 restoreBackgroundTimer();
 requestAnimationFrame(()=>prioritizeVisibleImages());
-initPhotoStorage().then(()=>{preloadLocalPhotos(); prioritizeVisibleImages();}).catch(()=>{});
+initPhotoStorage().then(async()=>{preloadLocalPhotos(); await warmPhotoCache(); prioritizeVisibleImages();}).catch(()=>{});
 checkNotifications();
 scheduleNotificationCheck();
 </script>
