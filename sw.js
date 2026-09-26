@@ -1,4 +1,4 @@
-const CACHE_NAME='mikadodo-static-v3';
+const CACHE_NAME='mikadodo-static-v4';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -7,7 +7,6 @@ self.addEventListener('install', event => {
     './manifest.webmanifest',
     './icon-512.png',
     './mikadodo-photos-recovery.js',
-    ...Array.from({length:55},(_,i)=>`./image_${String(i+1).padStart(3,'0')}.jpeg`),
     './recipe-emoji-air-fryer.png',
     './recipe-emoji-airfryer.png',
     './recipe-emoji-blender.png',
