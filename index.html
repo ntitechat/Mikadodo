@@ -816,7 +816,7 @@ function preloadLocalPhotos(){
   for(const r of state.recipes||[]) for(const p of (r.photos||[])) add(p);
   for(const x of state.stock||[]) add(x.photo);
   for(const x of state.agenda||[]) add(x.photo);
-  refs.slice(0,4).forEach(src=>{
+  refs.slice(0,2).forEach(src=>{
     const link=document.createElement('link'); link.rel='preload'; link.as='image'; link.href=src; document.head.appendChild(link);
   });
 }
@@ -824,11 +824,11 @@ function photoSrc(ref){if(!ref)return '';if(photoCache[ref])return photoCache[re
 async function migratePhotoField(obj,field){let v=obj?.[field];if(typeof v==='string'&&v.startsWith('data:image/')){obj[field]=await putPhoto(v)}else if(Array.isArray(v)){obj[field]=[];for(const item of v)obj[field].push(typeof item==='string'&&item.startsWith('data:image/')?await putPhoto(item):item)}}
 function prioritizeVisibleImages(){
   const imgs=[...document.querySelectorAll('.view.active img, .modal.show img, .modal-back.show img')];
-  imgs.slice(0,6).forEach((img,i)=>{
+  imgs.slice(0,4).forEach((img,i)=>{
     try{
       img.loading='eager';
       img.decoding='async';
-      if('fetchPriority' in img) img.fetchPriority=i<8?'high':'auto';
+      if('fetchPriority' in img) img.fetchPriority=i<2?'high':'auto';
     }catch(e){}
   });
 }
