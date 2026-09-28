@@ -646,6 +646,34 @@ async function buildBreakfastDishImage(items){
   return canvas.toDataURL('image/png');
 }
 
+let latestBreakfastDishImage='';
+
+async function downloadBreakfastDish(){
+  const image=latestBreakfastDishImage;
+  if(!image){
+    toast('Image indisponible');
+    return;
+  }
+  try{
+    const response=await fetch(image);
+    if(!response.ok)throw new Error('Image PNG inaccessible');
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='petit-dejeuner.png';
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    toast('Image enregistrée ✅');
+  }catch(e){
+    console.error(e);
+    toast('Impossible d’enregistrer l’image');
+  }
+}
+
 async function createBreakfastDish(){
   const items=pickUniqueBreakfastDishItems();
 
@@ -669,13 +697,14 @@ async function createBreakfastDish(){
 
   try{
     const image=await buildBreakfastDishImage(items);
+    latestBreakfastDishImage=image;
     content.innerHTML=`
       <div class="breakfast-dish-image-wrap">
         <img id="generatedBreakfastDish" class="breakfast-dish-image" src="${image}" alt="Ton petit déjeuner de ce matin">
       </div>
       <div class="breakfast-dish-actions">
         <button class="btn breakfast-new-btn" onclick="createBreakfastDish()">Nouveau</button>
-        <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>
+        <button type="button" class="btn ghost" onclick="downloadBreakfastDish()">Enregistrer l’image</button>
       </div>`;
   }catch(e){
     console.error(e);

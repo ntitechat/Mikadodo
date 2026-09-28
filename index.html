@@ -1444,7 +1444,7 @@ async function createBreakfastDish(){
     if(actions){
       actions.insertAdjacentHTML('afterbegin',
         `<button class="btn purple" onclick="addBreakfastDishToAgenda()">📅 Ajouter à l’agenda</button>
-         <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>`);
+         <button type="button" class="btn ghost" onclick="downloadBreakfastDish()">Enregistrer l’image</button>`);
     }
   }catch(e){
     console.error(e);
@@ -1452,6 +1452,33 @@ async function createBreakfastDish(){
 }
 
 let latestBreakfastDishImage='';
+
+async function downloadBreakfastDish(){
+  const image=latestBreakfastDishImage;
+  if(!image){
+    toast('Image indisponible');
+    return;
+  }
+  try{
+    const response=await fetch(image);
+    if(!response.ok)throw new Error('Image PNG inaccessible');
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='petit-dejeuner.png';
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    toast('Image enregistrée ✅');
+  }catch(e){
+    console.error(e);
+    toast('Impossible d’enregistrer l’image');
+  }
+}
+
 
 async function addBreakfastDishToAgenda(image){
   image=image||latestBreakfastDishImage;

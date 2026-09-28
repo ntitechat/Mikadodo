@@ -608,6 +608,34 @@ async function breakfastDishPhotoCard(item, label, emoji){
     </div>`;
 }
 
+let latestBreakfastDishImage='';
+
+async function downloadBreakfastDish(){
+  const image=latestBreakfastDishImage;
+  if(!image){
+    toast('Image indisponible');
+    return;
+  }
+  try{
+    const response=await fetch(image);
+    if(!response.ok)throw new Error('Image PNG inaccessible');
+    const blob=await response.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='petit-dejeuner.png';
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    toast('Image enregistrée ✅');
+  }catch(e){
+    console.error(e);
+    toast('Impossible d’enregistrer l’image');
+  }
+}
+
 async function createBreakfastDish(){
   // Ordre FIXE demandé : laitage, céréales, fruit.
   const items=pickUniqueBreakfastDishItems();
@@ -653,10 +681,11 @@ async function createBreakfastDish(){
   // tout en gardant l'aperçu HTML fidèle à la maquette sur mobile.
   try{
     const image=await buildBreakfastDishImageExact(items);
+    latestBreakfastDishImage=image;
     const actions=content.querySelector('.breakfast-dish-actions');
     if(actions){
       actions.innerHTML=`
-        <a class="btn ghost" href="${image}" download="petit-dejeuner.png">Enregistrer l’image</a>
+        <button type="button" class="btn ghost" onclick="downloadBreakfastDish()">Enregistrer l’image</button>
         <button class="btn breakfast-new-btn" onclick="createBreakfastDish()">Nouveau</button>`;
     }
   }catch(e){
