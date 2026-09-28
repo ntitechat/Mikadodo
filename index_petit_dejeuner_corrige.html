@@ -219,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function(){
  <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div id="breakfastCategories" class="chips"></div>
  <div id="breakfastGrid" class="grid"></div>
+<div id="savedBreakfastImages" style="margin-top:18px"></div>
 </section>
 <section id="stock" class="view">
  <div class="section-head"><h2>Mon stock</h2><button class="btn" onclick="openStockModal()">＋ Ajouter</button></div>
@@ -588,6 +589,123 @@ async function breakfastDishPhotoCard(item, label, emoji){
 
 let latestBreakfastDishImage='';
 
+
+const SAVED_BREAKFAST_DB='mikadodo-saved-breakfast-images';
+const SAVED_BREAKFAST_STORE='images';
+
+function savedBreakfastDB(){
+  return new Promise((resolve,reject)=>{
+    const r=indexedDB.open(SAVED_BREAKFAST_DB,1);
+    r.onupgradeneeded=()=>{
+      if(!r.result.objectStoreNames.contains(SAVED_BREAKFAST_STORE)){
+        r.result.createObjectStore(SAVED_BREAKFAST_STORE,{keyPath:'id',autoIncrement:true});
+      }
+    };
+    r.onsuccess=()=>resolve(r.result);
+    r.onerror=()=>reject(r.error);
+  });
+}
+
+async function saveGeneratedBreakfastImage(blob){
+  const db=await savedBreakfastDB();
+  await new Promise((resolve,reject)=>{
+    const tx=db.transaction(SAVED_BREAKFAST_STORE,'readwrite');
+    tx.objectStore(SAVED_BREAKFAST_STORE).add({
+      createdAt:Date.now(),
+      blob,
+      name:'petit-dejeuner.png'
+    });
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error);
+  });
+}
+
+async function getSavedBreakfastImages(){
+  const db=await savedBreakfastDB();
+  return await new Promise((resolve,reject)=>{
+    const tx=db.transaction(SAVED_BREAKFAST_STORE,'readonly');
+    const q=tx.objectStore(SAVED_BREAKFAST_STORE).getAll();
+    q.onsuccess=()=>resolve((q.result||[]).sort((a,b)=>b.createdAt-a.createdAt));
+    q.onerror=()=>reject(q.error);
+  });
+}
+
+async function importSavedBreakfastImages(event){
+  const files=Array.from(event.target.files||[]).filter(f=>f.type.startsWith('image/'));
+  if(!files.length)return;
+  try{
+    const db=await savedBreakfastDB();
+    await Promise.all(files.map(blob=>new Promise((resolve,reject)=>{
+      const tx=db.transaction(SAVED_BREAKFAST_STORE,'readwrite');
+      tx.objectStore(SAVED_BREAKFAST_STORE).add({
+        createdAt:Date.now(),
+        blob,
+        name:blob.name||'image.png'
+      });
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error);
+    })));
+    event.target.value='';
+    await renderSavedBreakfastImages();
+    toast(`${files.length} image${files.length>1?'s':''} importée${files.length>1?'s':''} ✅`);
+  }catch(e){
+    console.error(e);
+    toast('Impossible d’importer l’image');
+  }
+}
+
+async function renderSavedBreakfastImages(){
+  const wrap=document.getElementById('savedBreakfastImages');
+  if(!wrap)return;
+  try{
+    const items=await getSavedBreakfastImages();
+    if(!items.length){
+      wrap.innerHTML=`
+        <div class="small" style="padding:8px 0">
+          Aucune image enregistrée dans l’application.
+        </div>`;
+      return;
+    }
+
+    // Nettoyage des anciennes URLs créées par cette galerie.
+    if(Array.isArray(window.__savedBreakfastObjectUrls)){
+      window.__savedBreakfastObjectUrls.forEach(u=>URL.revokeObjectURL(u));
+    }
+    window.__savedBreakfastObjectUrls=[];
+
+    const cards=items.map((item,i)=>{
+      const url=URL.createObjectURL(item.blob);
+      window.__savedBreakfastObjectUrls.push(url);
+      const date=new Date(item.createdAt||Date.now()).toLocaleString('fr-FR',{
+        day:'2-digit',month:'2-digit',year:'numeric',
+        hour:'2-digit',minute:'2-digit'
+      });
+      return `
+        <div style="border:1px solid var(--line);border-radius:16px;padding:8px;background:#fff;">
+          <img src="${url}" alt="Petit déjeuner enregistré ${i+1}"
+               style="display:block;width:100%;max-height:260px;object-fit:contain;border-radius:12px;cursor:zoom-in"
+               onclick="zoomPhoto(this.src)">
+          <div class="small" style="margin-top:6px;text-align:center">${date}</div>
+        </div>`;
+    }).join('');
+
+    wrap.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:18px 0 10px;flex-wrap:wrap">
+        <h3 style="margin:0">🖼️ Images enregistrées</h3>
+        <label class="btn ghost mini" style="cursor:pointer">
+          Importer une image
+          <input type="file" accept="image/*" multiple onchange="importSavedBreakfastImages(event)" style="display:none">
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+        ${cards}
+      </div>`;
+  }catch(e){
+    console.error(e);
+    wrap.innerHTML='<div class="small">Impossible de charger les images enregistrées.</div>';
+  }
+}
+
 async function downloadBreakfastDish(){
   const image=latestBreakfastDishImage;
   if(!image){
@@ -598,6 +716,8 @@ async function downloadBreakfastDish(){
     const response=await fetch(image);
     if(!response.ok)throw new Error('Image PNG inaccessible');
     const blob=await response.blob();
+    await saveGeneratedBreakfastImage(blob);
+    await renderSavedBreakfastImages();
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
     a.href=url;
@@ -1260,7 +1380,9 @@ initPhotoStorage().then(()=>{renderAll();restoreBackgroundTimer()});
 checkNotifications();
 scheduleNotificationCheck();
 </script>
-</body></html>
+<script>
+window.addEventListener('DOMContentLoaded',()=>{renderSavedBreakfastImages();});
+</script></body></html>
 
 <style id="hide-create-breakfast-dish-button">
   /* Petit-déjeuner : bouton « Créer un petit déj » masqué */
