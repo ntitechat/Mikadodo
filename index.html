@@ -641,6 +641,10 @@ state.shopping.forEach(x=>{x.cat=x.cat||'Autre';x.place=x.place||'Placard';x.kee
 state.recipes.forEach(r=>{r.breakfastCategory=BREAKFAST_SUBCATEGORIES.includes(r.breakfastCategory)?r.breakfastCategory:'';r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes';r.videoLink=r.videoLink||'';r.videoLink2=r.videoLink2||'';r.recipeEmoji=RECIPE_EMOJI_OPTIONS.some(x=>x.id===r.recipeEmoji)?r.recipeEmoji:'none';if(r.keepUnit==='années')r.keepUnit='année'});state.stock.forEach(x=>x.photo=x.photo||'');
 state.agenda.forEach(x=>{x.advisedTime=x.advisedTime||x.notifyTime||startTime(x.time,x.duration||0);x.notifyTime=x.advisedTime});
 const PHOTO_DB='MikadodoPhotosV1';
+const PHOTO_DB_VERSION=3;
+const APP_STATE_STORE='appState';
+const APP_STATE_KEY='current';
+const STATE_SAVED_AT_KEY=KEY+'_savedAt';
 const TEST_IMAGE_PREFIX='idbtest:';
 let testImageCache={};
 let photoCache={};
@@ -650,10 +654,11 @@ async function requestDurablePhotoStorage(){
   }catch(e){}
 }
 function photoDB(){return new Promise((resolve,reject)=>{
-  const r=indexedDB.open(PHOTO_DB,2);
+  const r=indexedDB.open(PHOTO_DB,PHOTO_DB_VERSION);
   r.onupgradeneeded=()=>{
     if(!r.result.objectStoreNames.contains('photos'))r.result.createObjectStore('photos');
     if(!r.result.objectStoreNames.contains('testImages'))r.result.createObjectStore('testImages');
+    if(!r.result.objectStoreNames.contains(APP_STATE_STORE))r.result.createObjectStore(APP_STATE_STORE);
   };
   r.onsuccess=()=>{requestDurablePhotoStorage();resolve(r.result)};
   r.onerror=()=>reject(r.error)
@@ -864,7 +869,42 @@ async function warmPhotoCache(){
   if('requestIdleCallback' in window) requestIdleCallback(()=>warmRest(),{timeout:4000});
   else setTimeout(warmRest,1500);
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state));return true}catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}}function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function recipeMoney(n){let v=Number(n)||0;return (Number.isInteger(v)?String(v):v.toFixed(2).replace(/0+$/,'').replace(/\.$/, '').replace('.',','))+'€'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function fmtDateNoYear(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}function fmtStockDate(d){return fmtDateNoYear(d)}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
+function save(){
+  try{
+    const json=JSON.stringify(state);
+    const savedAt=Date.now();
+    localStorage.setItem(KEY,json);
+    localStorage.setItem(STATE_SAVED_AT_KEY,String(savedAt));
+    // Deuxième copie persistante : si localStorage est vidé, limité ou devient incohérent,
+    // l'état contenant les références idb: des photos peut être restauré depuis IndexedDB.
+    photoDB().then(db=>new Promise((resolve,reject)=>{
+      const tx=db.transaction(APP_STATE_STORE,'readwrite');
+      tx.objectStore(APP_STATE_STORE).put({savedAt,state:JSON.parse(json)},APP_STATE_KEY);
+      tx.oncomplete=()=>{db.close();resolve()};
+      tx.onerror=()=>{try{db.close()}catch(e){};reject(tx.error)};
+    })).catch(e=>console.warn('Copie persistante de l’état impossible',e));
+    return true;
+  }catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}
+}
+async function restorePersistedState(){
+  try{
+    const db=await photoDB();
+    const backup=await new Promise((resolve,reject)=>{
+      const tx=db.transaction(APP_STATE_STORE,'readonly');
+      const q=tx.objectStore(APP_STATE_STORE).get(APP_STATE_KEY);
+      q.onsuccess=()=>resolve(q.result||null); q.onerror=()=>reject(q.error);
+    });
+    db.close();
+    const localSavedAt=Number(localStorage.getItem(STATE_SAVED_AT_KEY)||0);
+    if(!backup?.state || Number(backup.savedAt||0)<=localSavedAt)return false;
+    if(!Array.isArray(backup.state.recipes)||!Array.isArray(backup.state.stock)||!Array.isArray(backup.state.shopping))return false;
+    state=backup.state;
+    localStorage.setItem(KEY,JSON.stringify(state));
+    localStorage.setItem(STATE_SAVED_AT_KEY,String(backup.savedAt));
+    return true;
+  }catch(e){console.warn('Restauration persistante impossible',e);return false}
+}
+function money(n){return (Number(n)||0).toFixed(2).replace('.',',')+' €'}function recipeMoney(n){let v=Number(n)||0;return (Number.isInteger(v)?String(v):v.toFixed(2).replace(/0+$/,'').replace(/\.$/, '').replace('.',','))+'€'}function fmtDate(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}function fmtDateNoYear(d){return new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}function fmtStockDate(d){return fmtDateNoYear(d)}function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}function toast(t){let x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
 let currentView='recipes';
 let navigationReady=false;
 function renderCurrentView(){
@@ -2748,7 +2788,20 @@ preloadLocalPhotos();
 renderAll();
 restoreBackgroundTimer();
 requestAnimationFrame(()=>prioritizeVisibleImages());
-initPhotoStorage().then(async()=>{preloadLocalPhotos(); await warmPhotoCache(); prioritizeVisibleImages();}).catch(()=>{});
+initPhotoStorage().then(async()=>{
+  // Vérifie d'abord la copie persistante de l'état, puis recharge toutes les références photo.
+  const restored=await restorePersistedState();
+  if(restored){
+    // Normalise les références après restauration avant de refaire le rendu.
+    state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];
+    state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];
+    state.recipes=(state.recipes||[]).map(r=>{r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';return r});
+    renderAll();
+  }
+  preloadLocalPhotos();
+  await warmPhotoCache();
+  prioritizeVisibleImages();
+}).catch(()=>{});
 checkNotifications();
 scheduleNotificationCheck();
 </script>
