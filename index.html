@@ -2290,7 +2290,7 @@ function renderRecipeIngredientPickerList(){
   ];
   if(!window.recipePickerCategory){
     list.innerHTML=`<button type="button" class="recipe-picker-item" data-recipe-no-link>— Aucun lien —</button>`+
-      `<button type="button" class="recipe-picker-item" data-recipe-stock>🧊 Stock</button>`+
+      `<button type="button" class="recipe-picker-item" data-recipe-stock>🧊 Stock — utiliser un produit du stock</button>`+
       categories.map(cat=>`<button type="button" class="recipe-picker-item recipe-picker-category" data-recipe-category="${esc(String(cat))}">📁 ${esc(cat)} <span>›</span></button>`).join('');
   }else{
     const cat=String(window.recipePickerCategory);
