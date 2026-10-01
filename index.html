@@ -690,6 +690,7 @@ async function putPhoto(photo,id){
     tx.onerror=()=>rej(tx.error)
   });
   db.close();
+  await requestDurablePhotoStorage();
   photoCache['idb:'+key]=objectUrl||stored;
   return 'idb:'+key
 }
@@ -873,11 +874,12 @@ async function warmPhotoCache(){
   if('requestIdleCallback' in window) requestIdleCallback(()=>warmRest(),{timeout:4000});
   else setTimeout(warmRest,1500);
 }
+let persistStateQueue=Promise.resolve();
+let persistStateVersion=0;
 function save(){
-  // IMPORTANT : IndexedDB est désormais la copie maître de l'état de l'application.
-  // localStorage n'est qu'un cache de démarrage. Ainsi, si localStorage atteint sa
-  // limite (ce qui arrive vite avec beaucoup de données), les références idb: des
-  // photos restent quand même enregistrées et l'application peut se restaurer.
+  // IndexedDB est la copie maître. Les sauvegardes sont sérialisées afin qu'une
+  // modification rapide ne puisse pas écraser une photo nouvellement ajoutée avec
+  // un ancien état. localStorage reste uniquement un cache de démarrage.
   let json, snapshot, savedAt;
   try{
     json=JSON.stringify(state);
@@ -888,23 +890,25 @@ function save(){
     toast('Impossible de préparer la sauvegarde');
     return false;
   }
-
-  // Écriture persistante indépendante de localStorage : elle est lancée en premier.
-  photoDB().then(db=>new Promise((resolve,reject)=>{
-    const tx=db.transaction(APP_STATE_STORE,'readwrite');
-    tx.objectStore(APP_STATE_STORE).put({savedAt,state:snapshot},APP_STATE_KEY);
-    tx.oncomplete=()=>{try{db.close()}catch(e){};resolve()};
-    tx.onerror=()=>{try{db.close()}catch(e){};reject(tx.error)};
-    tx.onabort=()=>{try{db.close()}catch(e){};reject(tx.error||new Error('Transaction interrompue'))};
-  })).catch(e=>console.warn('Copie persistante de l’état impossible',e));
-
-  // Cache rapide facultatif : son échec ne doit JAMAIS empêcher la sauvegarde IDB.
-  try{
-    localStorage.setItem(KEY,json);
-    localStorage.setItem(STATE_SAVED_AT_KEY,String(savedAt));
-  }catch(e){
-    console.warn('localStorage indisponible ou plein : la sauvegarde IndexedDB reste active',e);
-  }
+  const version=++persistStateVersion;
+  persistStateQueue=persistStateQueue.then(async()=>{
+    const db=await photoDB();
+    try{
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction(APP_STATE_STORE,'readwrite');
+        tx.objectStore(APP_STATE_STORE).put({savedAt,state:snapshot,version},APP_STATE_KEY);
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error);
+        tx.onabort=()=>reject(tx.error||new Error('Transaction interrompue'));
+      });
+    }finally{try{db.close()}catch(e){}}
+    try{
+      localStorage.setItem(KEY,json);
+      localStorage.setItem(STATE_SAVED_AT_KEY,String(savedAt));
+    }catch(e){
+      console.warn('localStorage indisponible ou plein : IndexedDB reste la sauvegarde principale',e);
+    }
+  }).catch(e=>console.error('Sauvegarde persistante impossible',e));
   return true;
 }
 async function restorePersistedState(){
@@ -916,12 +920,17 @@ async function restorePersistedState(){
       q.onsuccess=()=>resolve(q.result||null); q.onerror=()=>reject(q.error);
     });
     db.close();
-    const localSavedAt=Number(localStorage.getItem(STATE_SAVED_AT_KEY)||0);
-    if(!backup?.state || Number(backup.savedAt||0)<=localSavedAt)return false;
-    if(!Array.isArray(backup.state.recipes)||!Array.isArray(backup.state.stock)||!Array.isArray(backup.state.shopping))return false;
+    // Si une sauvegarde IndexedDB valide existe, elle est prioritaire sur
+    // localStorage : c'est elle qui contient les références des photos importées.
+    // On ne refuse donc plus la restauration simplement parce que le cache local
+    // a une date plus récente (il peut avoir été écrit alors que l'image IDB ne
+    // pouvait pas être relue).
+    if(!backup?.state || !Array.isArray(backup.state.recipes)||!Array.isArray(backup.state.stock)||!Array.isArray(backup.state.shopping))return false;
     state=backup.state;
-    localStorage.setItem(KEY,JSON.stringify(state));
-    localStorage.setItem(STATE_SAVED_AT_KEY,String(backup.savedAt));
+    try{
+      localStorage.setItem(KEY,JSON.stringify(state));
+      localStorage.setItem(STATE_SAVED_AT_KEY,String(backup.savedAt||Date.now()));
+    }catch(e){}
     return true;
   }catch(e){console.warn('Restauration persistante impossible',e);return false}
 }
@@ -2263,7 +2272,7 @@ function openRecipeModal(){window.editingRecipeId=null;window.recipeIngredientDr
 
 function isAlwaysAvailableIngredient(text){let lower=String(text||'').trim().toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g,'');return /(^|[^a-zàâäéèêëîïôöùûüÿç])(eau|sel|huile d[’']olive|huile d olive|rhum)(?=[^a-zàâäéèêëîïôöùûüÿç]|$)/i.test(lower)}
 function isWaterIngredient(text){return isAlwaysAvailableIngredient(text)}
-function renderRecipeIngredientLinks(){let el=document.getElementById('recipeIngredientLinks');let ta=document.getElementById('ri');if(!el||!ta)return;let r=state.recipes.find(x=>x.id===window.editingRecipeId);let baseLinks=r?.ingredientLinks||(window.editingRecipeId===null?(window.pendingRecipeIngredientLinks||[]):[]);let lines=ta.value.split('\n').map(x=>x.trim());let draft=window.recipeIngredientDraft;if(!draft||draft.recipeId!==window.editingRecipeId){draft={recipeId:window.editingRecipeId,raw:ta.value,rows:lines.map((text,i)=>({text,link:baseLinks[i]||{}}))};window.recipeIngredientDraft=draft}else if(draft.raw!==ta.value){let oldRows=draft.rows||[];let used=new Set();draft.rows=lines.map((text,i)=>{let match=-1;/* Le lien reste attaché à la ligne : modifier le texte de l'ingrédient ne supprime pas son association. */if(oldRows[i]&&!used.has(i)){match=i}/* Si une ligne a été supprimée/déplacée, on tente ensuite de la retrouver par son ancien texte. */if(match<0){for(let j=0;j<oldRows.length;j++){if(!used.has(j)&&oldRows[j].text===text){match=j;break}}}if(match>=0){used.add(match);return {text,link:oldRows[match].link||{}}}return {text,link:{}}});draft.raw=ta.value}el.innerHTML=lines.map((line,i)=>{let link=draft.rows[i]?.link||{};if(!line)return '';if(line.startsWith('*'))return `<div class="recipe-link-title"><div class="small">${esc(line.replace(/^\*\s*/,''))}</div></div>`;if(isAlwaysAvailableIngredient(line))return `<div class="recipe-link-compact" data-ingredient-row="${i}"><div class="small">${esc(line)}</div><div class="small" style="font-weight:700">🟢 Disponible</div><input type="hidden" class="recipe-link-shop" data-index="${i}" value=""><input class="recipe-link-qty" data-index="${i}" type="hidden" value="0"><input class="recipe-link-unit" data-index="${i}" type="hidden" value="ml"></div>`;let selected=state.shopping.find(x=>Number(x.id)===Number(link.shoppingId));let label=selected?.name||'— Aucun lien —';let opts='<option value="">— Aucun lien —</option>'+state.shopping.map(x=>`<option value="${x.id}" ${Number(link.shoppingId)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join('');return `<div class="recipe-link-compact" data-ingredient-row="${i}"><div class="small">${esc(line)}</div><div style="display:grid;gap:5px"><button type="button" class="recipe-link-shop-picker" onclick="openRecipeIngredientPicker(${i})">${esc(label)}</button><select class="recipe-link-shop" data-index="${i}" aria-label="Article de courses" style="display:none">${opts}</select></div><input class="recipe-link-qty" data-index="${i}" type="hidden" value="${link.qty??1}"><input class="recipe-link-unit" data-index="${i}" type="hidden" value="${link.unit||'pieces'}"></div>`}).join('')||'';}
+function renderRecipeIngredientLinks(){let el=document.getElementById('recipeIngredientLinks');let ta=document.getElementById('ri');if(!el||!ta)return;let r=state.recipes.find(x=>x.id===window.editingRecipeId);let baseLinks=r?.ingredientLinks||(window.editingRecipeId===null?(window.pendingRecipeIngredientLinks||[]):[]);let lines=ta.value.split('\n').map(x=>x.trim());let draft=window.recipeIngredientDraft;if(!draft||draft.recipeId!==window.editingRecipeId){draft={recipeId:window.editingRecipeId,raw:ta.value,rows:lines.map((text,i)=>({text,link:baseLinks[i]||{}}))};window.recipeIngredientDraft=draft}else if(draft.raw!==ta.value){let oldRows=draft.rows||[];let used=new Set();draft.rows=lines.map((text,i)=>{let match=-1;/* Le lien reste attaché à la ligne : modifier le texte de l'ingrédient ne supprime pas son association. */if(oldRows[i]&&!used.has(i)){match=i}/* Si une ligne a été supprimée/déplacée, on tente ensuite de la retrouver par son ancien texte. */if(match<0){for(let j=0;j<oldRows.length;j++){if(!used.has(j)&&oldRows[j].text===text){match=j;break}}}if(match>=0){used.add(match);return {text,link:oldRows[match].link||{}}}return {text,link:{}}});draft.raw=ta.value}el.innerHTML=lines.map((line,i)=>{let link=draft.rows[i]?.link||{};if(!line)return '';if(line.startsWith('*'))return `<div class="recipe-link-title"><div class="small">${esc(line.replace(/^\*\s*/,''))}</div></div>`;if(isAlwaysAvailableIngredient(line))return `<div class="recipe-link-compact" data-ingredient-row="${i}"><div class="small">${esc(line)}</div><div class="small" style="font-weight:700">🟢 Disponible</div><input type="hidden" class="recipe-link-shop" data-index="${i}" value=""><input class="recipe-link-qty" data-index="${i}" type="hidden" value="0"><input class="recipe-link-unit" data-index="${i}" type="hidden" value="ml"></div>`;let selected=state.shopping.find(x=>Number(x.id)===Number(link.shoppingId));let selectedStock=(Array.isArray(state.stock)?state.stock:[]).find(x=>Number(x.id)===Number(link.stockId));let label=selected?.name||(selectedStock?`🧊 ${selectedStock.name}`:'— Aucun lien —');let opts='<option value="">— Aucun lien —</option>'+state.shopping.map(x=>`<option value="${x.id}" ${Number(link.shoppingId)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join('');return `<div class="recipe-link-compact" data-ingredient-row="${i}"><div class="small">${esc(line)}</div><div style="display:grid;gap:5px"><button type="button" class="recipe-link-shop-picker" onclick="openRecipeIngredientPicker(${i})">${esc(label)}</button><select class="recipe-link-shop" data-index="${i}" aria-label="Article de courses" style="display:none">${opts}</select></div><input class="recipe-link-qty" data-index="${i}" type="hidden" value="${link.qty??1}"><input class="recipe-link-unit" data-index="${i}" type="hidden" value="${link.unit||'pieces'}"></div>`}).join('')||'';}
 
 function openRecipeIngredientPicker(index){let row=document.querySelector(`#recipeIngredientLinks [data-ingredient-row="${index}"]`);let select=row?.querySelector('.recipe-link-shop');if(!row||!select)return;let existing=document.getElementById('recipeIngredientPicker');if(existing)existing.remove();let back=document.createElement('div');back.id='recipeIngredientPicker';back.className='recipe-picker-back show';back.innerHTML=`<div class="recipe-picker" role="dialog" aria-modal="true"><div class="recipe-picker-head"><span>🛒 Choisir un ingrédient</span><button type="button" class="btn ghost" style="padding:7px 10px" onclick="closeRecipeIngredientPicker()">✕</button></div><div id="recipePickerList" class="recipe-picker-list"></div></div>`;document.body.appendChild(back);back.addEventListener('click',e=>{if(e.target===back)closeRecipeIngredientPicker()});window.recipePickerIndex=index;window.recipePickerSelect=select;window.recipePickerCategory=null;renderRecipeIngredientPickerList();}
 function renderRecipeIngredientPickerList(){
@@ -2281,6 +2290,7 @@ function renderRecipeIngredientPickerList(){
   ];
   if(!window.recipePickerCategory){
     list.innerHTML=`<button type="button" class="recipe-picker-item" data-recipe-no-link>— Aucun lien —</button>`+
+      `<button type="button" class="recipe-picker-item" data-recipe-stock>🧊 Stock</button>`+
       categories.map(cat=>`<button type="button" class="recipe-picker-item recipe-picker-category" data-recipe-category="${esc(String(cat))}">📁 ${esc(cat)} <span>›</span></button>`).join('');
   }else{
     const cat=String(window.recipePickerCategory);
@@ -2292,6 +2302,7 @@ function renderRecipeIngredientPickerList(){
   // Utiliser des écouteurs directs : cela évite les problèmes de clic sur les boutons
   // générés dynamiquement et garantit l'ouverture du contenu de la catégorie.
   list.querySelector('[data-recipe-no-link]')?.addEventListener('click',()=>chooseRecipeIngredient(''));
+  list.querySelector('[data-recipe-stock]')?.addEventListener('click',()=>openRecipeStockPicker(window.recipePickerIndex));
   list.querySelector('[data-recipe-picker-back]')?.addEventListener('click',()=>{window.recipePickerCategory=null;renderRecipeIngredientPickerList();});
   list.querySelectorAll('[data-recipe-category]').forEach(btn=>btn.addEventListener('click',()=>openRecipeIngredientCategory(btn.dataset.recipeCategory)));
   list.querySelectorAll('[data-recipe-item]').forEach(btn=>btn.addEventListener('click',()=>chooseRecipeIngredient(btn.dataset.recipeItem)));
@@ -2306,7 +2317,7 @@ function chooseRecipeIngredient(id){
   const item=state.shopping.find(x=>String(x.id)===value);
   const q=row?.querySelector('.recipe-link-qty');
   const u=row?.querySelector('.recipe-link-unit');
-  const existing=window.recipeIngredientDraft?.rows?.[index]?.link||{};const link=item?{...existing,shoppingId:item.id,qty:Number(q?.value)||0,unit:u?.value||'pieces'}:{...existing};if(!item)delete link.shoppingId;
+  const existing=window.recipeIngredientDraft?.rows?.[index]?.link||{};const link=item?{...existing,shoppingId:item.id,qty:Number(q?.value)||0,unit:u?.value||'pieces'}:{...existing};if(item)delete link.stockId;if(!item)delete link.shoppingId;
 
   // En mode modification, on enregistre immédiatement le lien dans la recette.
   const recipe=state.recipes.find(x=>String(x.id)===String(window.editingRecipeId));
@@ -2334,7 +2345,7 @@ function chooseRecipeIngredient(id){
 }
 function openRecipeStockPicker(index){const row=document.querySelector(`#recipeIngredientLinks [data-ingredient-row="${index}"]`);if(!row)return;document.getElementById('recipeIngredientStockPicker')?.remove();const back=document.createElement('div');back.id='recipeIngredientStockPicker';back.className='recipe-picker-back show';back.innerHTML=`<div class="recipe-picker" role="dialog" aria-modal="true"><div class="recipe-picker-head"><span>🧊 Choisir dans le stock</span><button type="button" class="btn ghost" style="padding:7px 10px" onclick="closeRecipeStockPicker()">✕</button></div><div id="recipeStockPickerList" class="recipe-picker-list"></div></div>`;document.body.appendChild(back);back.addEventListener('click',e=>{if(e.target===back)closeRecipeStockPicker()});window.recipeStockPickerIndex=index;renderRecipeStockPickerList()}
 function renderRecipeStockPickerList(){const list=document.getElementById('recipeStockPickerList');if(!list)return;const index=Number(window.recipeStockPickerIndex);const recipe=state.recipes.find(x=>String(x.id)===String(window.editingRecipeId));const link=window.recipeIngredientDraft?.rows?.[index]?.link||recipe?.ingredientLinks?.[index]||{};const selected=String(link.stockId||'');const places=['Réfrigérateur','Congélateur','Placard'];const ingredient=String(recipe?.ingredients?.[index]||'').trim();const stock=(Array.isArray(state.stock)?state.stock:[]).filter(x=>x&&String(x.name||'').trim()&&(!Number.isFinite(Number(x.qty))||Number(x.qty)>0));list.innerHTML=places.map(place=>{const items=stock.filter(x=>String(x.place||'')===place).sort((a,b)=>Number(recipeIngredientMatchesStock(ingredient,b.name))-Number(recipeIngredientMatchesStock(ingredient,a.name)));return `<div class="small" style="padding:10px 8px 5px;font-weight:800">${place}</div>`+(items.length?items.map(x=>`<button type="button" class="recipe-picker-item" data-stock-item="${esc(String(x.id))}">${recipeIngredientMatchesStock(ingredient,x.name)?'⭐ ':''}${esc(x.name)}${x.qty!=null?` · ${esc(String(x.qty))} ${esc(x.unit||'')}`:''}${String(x.id)===selected?' ✓':''}</button>`).join(''):'<div class="recipe-picker-none">Aucun article disponible.</div>')}).join('');list.querySelectorAll('[data-stock-item]').forEach(btn=>btn.addEventListener('click',()=>chooseRecipeStock(btn.dataset.stockItem)))}
-function chooseRecipeStock(id){const index=Number(window.recipeStockPickerIndex),value=String(id||''),item=(Array.isArray(state.stock)?state.stock:[]).find(x=>String(x.id)===value),recipe=state.recipes.find(x=>String(x.id)===String(window.editingRecipeId)),current=window.recipeIngredientDraft?.rows?.[index]?.link||recipe?.ingredientLinks?.[index]||{},link={...current};if(item)link.stockId=item.id;else delete link.stockId;if(window.recipeIngredientDraft?.rows?.[index])window.recipeIngredientDraft.rows[index].link=link;if(recipe){recipe.ingredientLinks=Array.isArray(recipe.ingredientLinks)?recipe.ingredientLinks:[];recipe.ingredientLinks[index]=link;save()}else{window.pendingRecipeIngredientLinks=window.pendingRecipeIngredientLinks||[];window.pendingRecipeIngredientLinks[index]=link}closeRecipeStockPicker();renderRecipeIngredientLinks();toast(item?`« ${item.name} » lié au stock ✓`:'Lien avec le stock supprimé')}
+function chooseRecipeStock(id){const index=Number(window.recipeStockPickerIndex),value=String(id||''),item=(Array.isArray(state.stock)?state.stock:[]).find(x=>String(x.id)===value),recipe=state.recipes.find(x=>String(x.id)===String(window.editingRecipeId)),current=window.recipeIngredientDraft?.rows?.[index]?.link||recipe?.ingredientLinks?.[index]||{},link={...current};if(item){link.stockId=item.id;delete link.shoppingId;}else delete link.stockId;if(window.recipeIngredientDraft?.rows?.[index])window.recipeIngredientDraft.rows[index].link=link;if(recipe){recipe.ingredientLinks=Array.isArray(recipe.ingredientLinks)?recipe.ingredientLinks:[];recipe.ingredientLinks[index]=link;save()}else{window.pendingRecipeIngredientLinks=window.pendingRecipeIngredientLinks||[];window.pendingRecipeIngredientLinks[index]=link}closeRecipeStockPicker();renderRecipeIngredientLinks();toast(item?`« ${item.name} » lié au stock ✓`:'Lien avec le stock supprimé')}
 function closeRecipeStockPicker(){document.getElementById('recipeIngredientStockPicker')?.remove();window.recipeStockPickerIndex=null}
 function closeRecipeIngredientPicker(){document.getElementById('recipeIngredientPicker')?.remove();window.recipePickerIndex=null;window.recipePickerSelect=null;}
 
@@ -2388,10 +2399,11 @@ async function saveRecipe(editId){
     }
     r.photos=[...locked,...photos].slice(0,2);
     r.photo=r.photos[0]||'';
-    save(); closeModal(); renderRecipes(); toast('Recette modifiée ✨'); openRecipe(editId);
+    save();
+    closeModal(); renderRecipes(); toast(photos.length?'Photo enregistrée durablement ✓':'Recette modifiée ✨'); openRecipe(editId);
   }else{
     state.recipes.push({id:Date.now(),...data,photos:photos.slice(0,2),photo:photos[0]||'',used:{}});
-    window.pendingRecipeIngredientLinks=[]; save(); closeModal(); renderRecipes(); toast(photos.length?'Recette créée avec ses photos 📷':'Recette créée');
+    window.pendingRecipeIngredientLinks=[]; save(); closeModal(); renderRecipes(); toast(photos.length?'Photo(s) enregistrée(s) durablement ✓':'Recette créée');
   }
 }
 
