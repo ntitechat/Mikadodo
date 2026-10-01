@@ -571,7 +571,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <script>
 const KEY='maCuisineV1';
-let state=JSON.parse(localStorage.getItem(KEY)||'null')||{
+let state=null;
+try{state=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){console.warn('Ancien état local illisible, restauration IndexedDB tentée',e);state=null}
+state=state||{
  recipes:[
   {id:1,name:'Hachis parmentier',cat:'Plat',prep:20,cook:30,serv:4,cost:11.8,keep:3,keepUnit:'jours',keepPlace:'Réfrigérateur',emoji:'🥔',ingredients:['500 g viande hachée','1 kg pommes de terre','50 cl lait','50 g beurre','100 g fromage'],steps:['Préparer la purée.','Faire revenir la viande.','Assembler dans un plat.','Ajouter le fromage puis cuire 30 min.']},
   {id:2,name:'Couscous',cat:'Plat',prep:30,cook:60,serv:4,cost:12,keep:3,keepUnit:'jours',keepPlace:'Réfrigérateur',emoji:'🍲',ingredients:['500 g agneau ou bœuf','100 g poulet','100 ml coulis de tomate','1,2 L eau','3 patates','2 carottes','2 navets','200 g pois chiche','300 g semoule','2 c. à s. huile d’olive'],steps:['Préparer la viande et les légumes.','Faire mijoter le bouillon.','Préparer la semoule.','Servir chaud.']},
@@ -872,21 +874,38 @@ async function warmPhotoCache(){
   else setTimeout(warmRest,1500);
 }
 function save(){
+  // IMPORTANT : IndexedDB est désormais la copie maître de l'état de l'application.
+  // localStorage n'est qu'un cache de démarrage. Ainsi, si localStorage atteint sa
+  // limite (ce qui arrive vite avec beaucoup de données), les références idb: des
+  // photos restent quand même enregistrées et l'application peut se restaurer.
+  let json, snapshot, savedAt;
   try{
-    const json=JSON.stringify(state);
-    const savedAt=Date.now();
+    json=JSON.stringify(state);
+    snapshot=JSON.parse(json);
+    savedAt=Date.now();
+  }catch(e){
+    console.error(e);
+    toast('Impossible de préparer la sauvegarde');
+    return false;
+  }
+
+  // Écriture persistante indépendante de localStorage : elle est lancée en premier.
+  photoDB().then(db=>new Promise((resolve,reject)=>{
+    const tx=db.transaction(APP_STATE_STORE,'readwrite');
+    tx.objectStore(APP_STATE_STORE).put({savedAt,state:snapshot},APP_STATE_KEY);
+    tx.oncomplete=()=>{try{db.close()}catch(e){};resolve()};
+    tx.onerror=()=>{try{db.close()}catch(e){};reject(tx.error)};
+    tx.onabort=()=>{try{db.close()}catch(e){};reject(tx.error||new Error('Transaction interrompue'))};
+  })).catch(e=>console.warn('Copie persistante de l’état impossible',e));
+
+  // Cache rapide facultatif : son échec ne doit JAMAIS empêcher la sauvegarde IDB.
+  try{
     localStorage.setItem(KEY,json);
     localStorage.setItem(STATE_SAVED_AT_KEY,String(savedAt));
-    // Deuxième copie persistante : si localStorage est vidé, limité ou devient incohérent,
-    // l'état contenant les références idb: des photos peut être restauré depuis IndexedDB.
-    photoDB().then(db=>new Promise((resolve,reject)=>{
-      const tx=db.transaction(APP_STATE_STORE,'readwrite');
-      tx.objectStore(APP_STATE_STORE).put({savedAt,state:JSON.parse(json)},APP_STATE_KEY);
-      tx.oncomplete=()=>{db.close();resolve()};
-      tx.onerror=()=>{try{db.close()}catch(e){};reject(tx.error)};
-    })).catch(e=>console.warn('Copie persistante de l’état impossible',e));
-    return true;
-  }catch(e){console.error(e);toast('Impossible d’enregistrer : stockage du navigateur plein');return false}
+  }catch(e){
+    console.warn('localStorage indisponible ou plein : la sauvegarde IndexedDB reste active',e);
+  }
+  return true;
 }
 async function restorePersistedState(){
   try{
