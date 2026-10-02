@@ -1,11 +1,7 @@
-Mikadodo — lien recettes ↔ stock
+Lien Stock des ingrédients
 
-Modification :
-- Chaque ingrédient d'une recette peut être lié à un article précis du stock.
-- Le lien peut viser le Réfrigérateur, le Congélateur ou le Placard.
-- Lors de « Vérifier les ingrédients », un lien stock vérifie l'article précis et sa quantité disponible.
-- Si la quantité du stock est insuffisante pour la quantité utilisée indiquée dans la recette, l'ingrédient est considéré comme manquant.
-- Sans lien explicite, la recherche automatique dans les trois emplacements reste active.
-- Le sélecteur de stock met en avant les articles qui correspondent à l'ingrédient.
+Le lien « 🧊 Stock » dans le sélecteur d'ingrédients est un lien potentiel :
+il signifie que l'ingrédient peut déjà être présent dans le stock, sans choisir un article précis.
 
-Les photos ne sont pas incluses dans cette archive : elles restent celles déjà enregistrées dans l'installation existante.
+Il est enregistré sous ingredientLinks[i].stockPotential=true.
+Ce lien est distinct d'un lien vers un produit actuellement présent dans le stock.
