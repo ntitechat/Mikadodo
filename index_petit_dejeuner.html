@@ -371,63 +371,54 @@ function isRecipeIngredientTitle(value){
 
 function recipeIngredientAvailability(recipe){
   const shopping = Array.isArray(state.shopping)?state.shopping:[];
-  const availableText = shopping
-    .filter(x=>x&&x.done)
-    .map(x=>normalizeIngredientForMatch(x.name))
-    .filter(Boolean);
-
+  const stock = Array.isArray(state.stock)?state.stock:[];
   const links = Array.isArray(recipe.ingredientLinks)?recipe.ingredientLinks:[];
   let total=0, have=0, missing=0;
+
+  const stockContainsIngredient=(ingredient)=>{
+    const normalized=normalizeIngredientForMatch(ingredient);
+    const words=normalized.split(' ').filter(w=>w.length>=3 && !/^(g|kg|mg|ml|cl|l|cuillere|cuilleres|c|a|s|cs|cc|piece|pieces|x|sachet|sachets|paquet|paquets|boite|boites)$/.test(w));
+    const useful=words.filter(w=>!['de','du','des','le','la','les','et','ou','au','aux'].includes(w));
+    if(!useful.length)return false;
+    return stock.some(item=>{
+      if(!item)return false;
+      const itemWords=normalizeIngredientForMatch(item.name).split(' ').filter(w=>w.length>=3);
+      return useful.every(w=>itemWords.includes(w));
+    });
+  };
 
   (Array.isArray(recipe.ingredients)?recipe.ingredients:[]).forEach((ingredient,i)=>{
     const raw=String(ingredient||'').trim();
     if(!raw || isRecipeIngredientTitle(raw)) return;
-
     total++;
     const normalized=normalizeIngredientForMatch(raw);
 
-    // Eau et sel sont considérés disponibles comme dans la vérification
-    // existante de la fiche recette.
     if(/(^| )(?:eau|sel)( |$)/.test(normalized)){
       have++;
       return;
     }
 
-    // Si l'ingrédient est lié à un article de courses, ce lien est la source
-    // de vérité. On ne fait surtout pas de rapprochement textuel avec un autre
-    // article : par exemple "patate douce rouge" ne doit pas être considéré
-    // disponible parce que "patate douce" est dans les courses.
     const link=links[i];
-    if(link?.shoppingId){
-      const linkedShop=shopping.find(x=>Number(x.id)===Number(link.shoppingId));
-      if(linkedShop && linkedShop.done){
-        have++;
-      } else {
-        missing++;
+
+    // Un lien explicite est prioritaire : il interdit tout rapprochement
+    // automatique avec un autre produit du stock.
+    if(link && (link.shoppingId!=null || link.source==='stock' || link.stock===true)){
+      if(link.source==='stock' || link.stock===true){
+        if(stockContainsIngredient(raw)) have++; else missing++;
+        return;
       }
+      const linkedShop=shopping.find(x=>Number(x.id)===Number(link.shoppingId));
+      if(linkedShop && linkedShop.done) have++; else missing++;
       return;
     }
 
-    // Sans lien explicite, comparaison souple du texte : on ignore les
-    // quantités et unités, mais TOUS les mots significatifs de l'ingrédient
-    // doivent être présents dans l'article pour éviter les faux positifs.
-    const ingredientWords=normalized
-      .split(' ')
-      .filter(w=>w.length>=3 && !/^(g|kg|ml|cl|l|mg|cuillere|cuilleres|c|a|s|cs|cc|piece|pieces|x)$/.test(w));
-
-    const found=availableText.some(item=>{
-      const itemWords=item.split(' ').filter(w=>w.length>=3);
-      const useful=ingredientWords.filter(w=>!['de','du','des','le','la','les','et','ou','au','aux'].includes(w));
-      if(!useful.length) return false;
-      return useful.every(w=>itemWords.includes(w));
-    });
-
-    if(found) have++; else missing++;
+    // Sans lien explicite, on ne rapproche PAS l'ingrédient avec le stock
+    // ni avec les courses. Il faut choisir « Stock » ou un article de courses.
+    missing++;
   });
 
   return {total,have,missing};
 }
-
 function toggleCookableRecipes(){
   cookableRecipesOnly=!cookableRecipesOnly;
   renderRecipes();
@@ -1253,15 +1244,18 @@ function isAlwaysAvailableIngredient(text){let lower=String(text||'').trim().toL
 function isWaterIngredient(text){return isAlwaysAvailableIngredient(text)}
 function renderRecipeIngredientLinks(){let el=document.getElementById('recipeIngredientLinks');let ta=document.getElementById('ri');if(!el||!ta)return;let r=state.recipes.find(x=>x.id===window.editingRecipeId);let baseLinks=r?.ingredientLinks||(window.editingRecipeId===null?(window.pendingRecipeIngredientLinks||[]):[]);let lines=ta.value.split('\n').map(x=>x.trim());let draft=window.recipeIngredientDraft;if(!draft||draft.recipeId!==window.editingRecipeId){draft={recipeId:window.editingRecipeId,raw:ta.value,rows:lines.map((text,i)=>({text,link:baseLinks[i]||{}}))};window.recipeIngredientDraft=draft}else if(draft.raw!==ta.value){let oldRows=draft.rows||[];let used=new Set();draft.rows=lines.map((text,i)=>{let match=-1;/* Le lien reste attaché à la ligne : modifier le texte de l'ingrédient ne supprime pas son association. */if(oldRows[i]&&!used.has(i)){match=i}/* Si une ligne a été supprimée/déplacée, on tente ensuite de la retrouver par son ancien texte. */if(match<0){for(let j=0;j<oldRows.length;j++){if(!used.has(j)&&oldRows[j].text===text){match=j;break}}}if(match>=0){used.add(match);return {text,link:oldRows[match].link||{}}}return {text,link:{}}});draft.raw=ta.value}el.innerHTML=lines.map((line,i)=>{let link=draft.rows[i]?.link||{};if(!line)return '';if(line.startsWith('*'))return `<div class="recipe-link-title"><div class="small">${esc(line.replace(/^\*\s*/,''))}</div></div>`;if(isAlwaysAvailableIngredient(line))return `<div class="recipe-link-compact" data-ingredient-row="${i}"><div class="small">${esc(line)}</div><div class="small" style="font-weight:700">🟢 Disponible</div><input type="hidden" class="recipe-link-shop" data-index="${i}" value=""><input class="recipe-link-qty" data-index="${i}" type="hidden" value="0"><input class="recipe-link-unit" data-index="${i}" type="hidden" value="ml"></div>`;let selected=state.shopping.find(x=>Number(x.id)===Number(link.shoppingId));let label=selected?.name||'— Aucun lien —';let opts='<option value="">— Aucun lien —</option>'+state.shopping.map(x=>`<option value="${x.id}" ${Number(link.shoppingId)===Number(x.id)?'selected':''}>${esc(x.name)}</option>`).join('');return `<div class="recipe-link-compact" data-ingredient-row="${i}"><div class="small">${esc(line)}</div><div><button type="button" class="recipe-link-shop-picker" onclick="openRecipeIngredientPicker(${i})">${esc(label)}</button><select class="recipe-link-shop" data-index="${i}" aria-label="Article de courses" style="display:none">${opts}</select></div><input class="recipe-link-qty" data-index="${i}" type="hidden" value="${link.qty??1}"><input class="recipe-link-unit" data-index="${i}" type="hidden" value="${link.unit||'pieces'}"></div>`}).join('')||'';}
 
-function openRecipeIngredientPicker(index){let row=document.querySelector(`#recipeIngredientLinks [data-ingredient-row="${index}"]`);let select=row?.querySelector('.recipe-link-shop');if(!row||!select)return;let existing=document.getElementById('recipeIngredientPicker');if(existing)existing.remove();let back=document.createElement('div');back.id='recipeIngredientPicker';back.className='recipe-picker-back show';back.innerHTML=`<div class="recipe-picker" role="dialog" aria-modal="true"><div class="recipe-picker-head"><span>🛒 Choisir un ingrédient</span><button type="button" class="btn ghost" style="padding:7px 10px" onclick="closeRecipeIngredientPicker()">✕</button></div><div id="recipePickerList" class="recipe-picker-list"></div></div>`;document.body.appendChild(back);back.addEventListener('click',e=>{if(e.target===back)closeRecipeIngredientPicker()});window.recipePickerIndex=index;window.recipePickerSelect=select;window.recipePickerCategory=null;renderRecipeIngredientPickerList();}
+function openRecipeIngredientPicker(index){let row=document.querySelector(`#recipeIngredientLinks [data-ingredient-row="${index}"]`);let select=row?.querySelector('.recipe-link-shop');if(!row||!select)return;let existing=document.getElementById('recipeIngredientPicker');if(existing)existing.remove();let back=document.createElement('div');back.id='recipeIngredientPicker';back.className='recipe-picker-back show';back.innerHTML=`<div class="recipe-picker" role="dialog" aria-modal="true"><div class="recipe-picker-head"><span>🛒 Choisir un ingrédient</span><button type="button" class="btn ghost" style="padding:7px 10px" onclick="closeRecipeIngredientPicker()">✕</button></div><div id="recipePickerList" class="recipe-picker-list"></div></div>`;document.body.appendChild(back);back.addEventListener('click',e=>{if(e.target===back)closeRecipeIngredientPicker()});window.recipePickerIndex=index;window.recipePickerSelect=select;window.recipePickerCategory=null;window.recipePickerLink=window.recipeIngredientDraft?.rows?.[index]?.link||{};renderRecipeIngredientPickerList();}
 function renderRecipeIngredientPickerList(){
   const list=document.getElementById('recipePickerList');
   if(!list)return;
   const selected=window.recipePickerSelect?.value||'';
+  const selectedLink=window.recipePickerLink||{};
   const categories=[...new Set(state.shopping.map(x=>x.cat||'Autre'))];
   if(!window.recipePickerCategory){
-    list.innerHTML=`<button type="button" class="recipe-picker-item" data-recipe-no-link>— Aucun lien —</button>`+
+    list.innerHTML=`<button type="button" class="recipe-picker-item" data-recipe-no-link>— Aucun lien —</button><button type="button" class="recipe-picker-item recipe-picker-category" data-recipe-stock>🧊 Stock <span>›</span></button>`+
       categories.map(cat=>`<button type="button" class="recipe-picker-item recipe-picker-category" data-recipe-category="${esc(String(cat))}">📁 ${esc(cat)} <span>›</span></button>`).join('');
+  }else if(window.recipePickerCategory==='__STOCK__'){
+    list.innerHTML=`<button type="button" class="recipe-picker-back-btn" data-recipe-picker-back>‹ Retour aux catégories</button><button type="button" class="recipe-picker-item" data-recipe-stock-choice>🧊 Utiliser le stock</button><div class="recipe-picker-none">Le nom de l’ingrédient sera vérifié uniquement parmi les produits du stock.</div>`;
   }else{
     const cat=String(window.recipePickerCategory);
     const items=state.shopping.filter(x=>String(x.cat||'Autre')===cat).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
@@ -1273,6 +1267,8 @@ function renderRecipeIngredientPickerList(){
   // générés dynamiquement et garantit l'ouverture du contenu de la catégorie.
   list.querySelector('[data-recipe-no-link]')?.addEventListener('click',()=>chooseRecipeIngredient(''));
   list.querySelector('[data-recipe-picker-back]')?.addEventListener('click',()=>{window.recipePickerCategory=null;renderRecipeIngredientPickerList();});
+  list.querySelector('[data-recipe-stock]')?.addEventListener('click',()=>openRecipeIngredientCategory('__STOCK__'));
+  list.querySelector('[data-recipe-stock-choice]')?.addEventListener('click',()=>chooseRecipeIngredient('STOCK'));
   list.querySelectorAll('[data-recipe-category]').forEach(btn=>btn.addEventListener('click',()=>openRecipeIngredientCategory(btn.dataset.recipeCategory)));
   list.querySelectorAll('[data-recipe-item]').forEach(btn=>btn.addEventListener('click',()=>chooseRecipeIngredient(btn.dataset.recipeItem)));
 }
@@ -1286,7 +1282,7 @@ function chooseRecipeIngredient(id){
   const item=state.shopping.find(x=>String(x.id)===value);
   const q=row?.querySelector('.recipe-link-qty');
   const u=row?.querySelector('.recipe-link-unit');
-  const link=item?{shoppingId:item.id,qty:Number(q?.value)||0,unit:u?.value||'pieces'}:null;
+  const link=value==='STOCK'?{source:'stock',stock:true,qty:Number(q?.value)||0,unit:u?.value||'pieces'}:(item?{shoppingId:item.id,qty:Number(q?.value)||0,unit:u?.value||'pieces'}:null);
 
   // En mode modification, on enregistre immédiatement le lien dans la recette.
   const recipe=state.recipes.find(x=>String(x.id)===String(window.editingRecipeId));
@@ -1306,11 +1302,11 @@ function chooseRecipeIngredient(id){
 
   if(select)select.value=value;
   const btn=row?.querySelector('.recipe-link-shop-picker');
-  if(btn){btn.textContent=item?.name||'— Aucun lien —';btn.classList.toggle('linked',!!item);}
+  if(btn){btn.textContent=value==='STOCK'?'🧊 Stock':(item?.name||'— Aucun lien —');btn.classList.toggle('linked',!!item||value==='STOCK');}
   closeRecipeIngredientPicker();
   // Re-rendre la ligne depuis les données enregistrées pour que le choix reste visible.
   if(row?.parentElement)renderRecipeIngredientLinks();
-  toast(item?`« ${item.name} » lié à la liste de courses ✓`:'Lien supprimé');
+  toast(value==='STOCK'?'Lien « Stock » enregistré ✓':(item?`« ${item.name} » lié à la liste de courses ✓`:'Lien supprimé'));
 }
 function closeRecipeIngredientPicker(){document.getElementById('recipeIngredientPicker')?.remove();window.recipePickerIndex=null;window.recipePickerSelect=null;}
 

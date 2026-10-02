@@ -2020,9 +2020,15 @@ function linkExistingStockAndAgendaToRecipes(){
 }
 function stockRecipesForItem(stockItem){
   if(!stockItem)return [];
-  return (Array.isArray(state.recipes)?state.recipes:[]).filter(r=>
-    (Array.isArray(r.ingredients)?r.ingredients:[]).some(ingredient=>recipeIngredientMatchesStock(String(ingredient||''),String(stockItem.name||'')))
-  );
+  return (Array.isArray(state.recipes)?state.recipes:[]).filter(r=>{
+    const links=Array.isArray(r.ingredientLinks)?r.ingredientLinks:[];
+    return (Array.isArray(r.ingredients)?r.ingredients:[]).some((ingredient,i)=>{
+      const link=links[i];
+      if(link?.stockId) return Number(link.stockId)===Number(stockItem.id);
+      if(link?.stockPotential) return recipeIngredientMatchesStock(String(ingredient||''),String(stockItem.name||''));
+      return false;
+    });
+  });
 }
 function showStockRecipes(stockId){
   const item=(state.stock||[]).find(x=>Number(x.id)===Number(stockId));
