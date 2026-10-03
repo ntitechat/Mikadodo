@@ -7,6 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest"/>
 <title>Mikadodo</title>
 <script src="mikadodo-photos-recovery.js"></script>
+<script src="jszip.min.js"></script>
 <style>
 :root{--green:#E8A7B8;--green2:#FCEFF3;--purple:#D889A1;--purple2:#F9E6EC;--ink:#292326;--muted:#7D7478;--line:#EEE3E7;--bg:#FFFBFC;--danger:#D86B7A;--warning:#D9A35B;--shadow:0 4px 16px rgba(105,72,84,.10)}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}button,input,select,textarea{font:inherit}button{border:0;cursor:pointer}.app{min-height:100vh;padding-bottom:76px}.top{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--line)}.hero{display:none}.hero .gear{display:none}.tabs{display:flex;overflow:auto;background:#fff}.top-nav{display:flex;gap:7px;overflow:auto;padding:8px 12px;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line);scrollbar-width:none}.top-nav::-webkit-scrollbar{display:none}.top-nav button{flex:0 0 auto;background:#fff;border:1px solid var(--line);color:#777;border-radius:12px;padding:8px 12px;font-size:13px;font-weight:800;white-space:nowrap}.top-nav button.active{background:var(--green2);color:var(--green);border-color:var(--green)}.tab{padding:10px 14px;white-space:nowrap;color:#777;font-weight:700;font-size:14px;border-bottom:3px solid transparent}.tab.active{color:var(--green);border-color:var(--green)}main{max-width:900px;margin:auto;padding:18px}.view{display:none}.view.active{display:block}.section-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:4px 0 10px;position:relative}.section-head:after{content:'✦ ·';font-size:10px;color:#D889A1;opacity:.5;margin-left:auto}.section-head .btn{font-size:13px;padding:8px 11px}.section-head h2{margin:0;font-size:20px}.btn{background:var(--green);color:#fff;padding:11px 16px;border-radius:13px;font-weight:800}.btn.purple{background:var(--purple)}.breakfast-new-btn{background:#C95F7D}.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.search{width:100%;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:#fff;margin-bottom:14px}.chips{display:flex;gap:8px;overflow:auto;padding-bottom:8px}.breakfast-category-chip{font-weight:400}.chip{padding:9px 13px;border-radius:999px;background:#fff;border:1px solid var(--line);white-space:nowrap}.chip.active{background:var(--purple);color:#fff;border-color:var(--purple)}.grid{display:grid;grid-template-columns:1fr;gap:0}.card{background:#fff;border-radius:0;box-shadow:none;overflow:hidden}.recipe-card{display:flex;align-items:center;min-height:120px;border-bottom:1px solid var(--line);padding:12px 0;gap:16px}.recipe-card .card-body{order:1;flex:1;min-width:0;padding:8px 0}.recipe-card .recipe-photo{order:2;flex:0 0 142px;width:142px;height:106px;border-radius:15px;background:linear-gradient(135deg,#e8d2aa,#f6f0df)}.recipe-photo{height:125px;background:linear-gradient(135deg,#e8d2aa,#f6f0df);display:flex;align-items:center;justify-content:center;font-size:64px;overflow:hidden}.recipe-photo img{width:100%;height:100%;object-fit:cover}
 .recipe-photo.recipe-emoji-photo{background:linear-gradient(135deg,#FCEFF3,#fff);padding:8px}
@@ -2883,7 +2884,7 @@ async function renderTestRecipes(){
   }).join('');
 }
 
-function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><h3 style="margin:10px 0 6px">🕒 Horaires de l’agenda</h3><div id="mealTimeSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0 12px"><button class="btn purple" onclick="saveMealTimeSettings()">💾 Enregistrer les horaires</button></div><h3 style="margin:10px 0 6px">🍽️ Historique des repas</h3><div id="mealHistorySettings"></div><h3 style="margin:10px 0 6px">📖 Catégories des recettes</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage des catégories de recettes.</div><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter</button></div><h3 style="margin:10px 0 6px">🛒 Catégories des courses</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage dans Liste de courses.</div><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin:8px 8px 0 0" onclick="exportData()">Exporter toutes mes données</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('importDataInput').click()">Importer mes données</button><input id="importDataInput" type="file" accept="application/json,.json" style="display:none" onchange="importData(this)"><div class="small" style="margin-top:8px">La sauvegarde inclut aussi les photos des recettes, du stock et de l’agenda.</div><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderMealTimeSettings();renderCategorySettings();renderMealHistorySettings()}
+function openSettings(){document.getElementById('modal').innerHTML=`<h2>⚙️ Paramètres</h2><h3 style="margin:10px 0 6px">🕒 Horaires de l’agenda</h3><div id="mealTimeSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0 12px"><button class="btn purple" onclick="saveMealTimeSettings()">💾 Enregistrer les horaires</button></div><h3 style="margin:10px 0 6px">🍽️ Historique des repas</h3><div id="mealHistorySettings"></div><h3 style="margin:10px 0 6px">📖 Catégories des recettes</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage des catégories de recettes.</div><div id="recipeCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('recipe')">＋ Ajouter</button></div><h3 style="margin:10px 0 6px">🛒 Catégories des courses</h3><div class="small" style="margin-bottom:6px">Utilise ↑ et ↓ pour changer l’ordre d’affichage dans Liste de courses.</div><div id="shopCatSettings"></div><div class="actions" style="justify-content:flex-start;margin:6px 0"><button class="btn purple" onclick="addCategory('shopping')">＋ Ajouter</button></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><button class="btn" onclick="requestNotifications()">🔔 Activer les notifications</button><button class="btn ghost" style="margin:8px 8px 0 0" onclick="exportData()">Exporter toutes mes données</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('importDataInput').click()">Importer mes données</button><input id="importDataInput" type="file" accept="application/json,.json,.zip,application/zip" style="display:none" onchange="importData(this)"><div class="small" style="margin-top:8px">La sauvegarde JSON contient les vraies photos. Le ZIP ajoute les fichiers image séparément et peut restaurer les photos dans leurs références exactes.</div><div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="btn purple" onclick="exportPhotoBackupZip()">🛡️ Créer la sauvegarde ZIP des photos</button><button class="btn ghost" onclick="document.getElementById('importDataInput').click()">♻️ Restaurer une sauvegarde</button></div><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();renderMealTimeSettings();renderCategorySettings();renderMealHistorySettings()}
 function renderCategorySettings(){let r=document.getElementById('recipeCatSettings'),s=document.getElementById('shopCatSettings');if(!r||!s)return;r.innerHTML=state.recipeCategories.map((c,i)=>`<div class="shop-item" style="border:1px solid var(--line);border-radius:9px;margin:3px 0;padding:5px 7px;min-height:34px"><div class="shop-name" style="font-weight:400">${esc(c)}</div><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('recipe',${i},-1)" ${i===0?'disabled':''}>↑</button><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('recipe',${i},1)" ${i===state.recipeCategories.length-1?'disabled':''}>↓</button><button class="btn ghost mini" style="padding:4px 7px" onclick="renameCategory('recipe',${i})">✏️</button><button class="btn ghost mini" style="padding:4px 7px" onclick="deleteCategory('recipe',${i})">🗑️</button></div>`).join('');s.innerHTML=state.shoppingCategories.map((c,i)=>`<div class="shop-item" style="border:1px solid var(--line);border-radius:9px;margin:3px 0;padding:5px 7px;min-height:34px"><div class="shop-name" style="font-weight:400">${esc(c)}</div><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('shopping',${i},-1)" ${i===0?'disabled':''}>↑</button><button class="btn ghost mini" style="padding:4px 7px" onclick="moveCategory('shopping',${i},1)" ${i===state.shoppingCategories.length-1?'disabled':''}>↓</button><button class="btn ghost mini" style="padding:4px 7px" onclick="renameCategory('shopping',${i})">✏️</button><button class="btn ghost mini" style="padding:4px 7px" onclick="deleteCategory('shopping',${i})">🗑️</button></div>`).join('')}
 function moveCategory(type,index,direction){
   let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories;
@@ -2915,8 +2916,127 @@ async function requestNotifications(){
 function showNotificationHelp(message){
  document.getElementById('modal').innerHTML=`<h2>🔔 Notifications</h2><p>${esc(message)}</p><div class="notif"><b>Sur Android / Chrome :</b><br>ouvre les informations du site → <b>Autorisations</b> → <b>Notifications</b> → <b>Autoriser</b>.</div><div class="notif"><b>Sur iPhone / iPad :</b><br>si Mikadodo est installé sur l’écran d’accueil, vérifie les réglages de notifications de l’app. Les notifications Web nécessitent une version compatible d’iOS/iPadOS.</div><p class="small">Une fois l’autorisation donnée, reviens dans Mikadodo et appuie à nouveau sur « Activer les notifications ».</p><div class="actions"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;showModal();
 }
-async function exportData(){try{let backup={version:2,exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state)),photos:{}};let refs=[];for(const r of backup.state.recipes||[]){for(const ref of (r.photos||[]))if(String(ref).startsWith('idb:'))refs.push(ref);if(String(r.photo||'').startsWith('idb:'))refs.push(r.photo)}for(const x of backup.state.stock||[])if(String(x.photo||'').startsWith('idb:'))refs.push(x.photo);for(const x of backup.state.agenda||[])if(String(x.photo||'').startsWith('idb:'))refs.push(x.photo);refs=[...new Set(refs)];for(const ref of refs){const data=await getPhoto(ref);if(data)backup.photos[ref]=data}let blob=new Blob([JSON.stringify(backup)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mikadodo-sauvegarde-complete.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Sauvegarde complète créée ✅')}catch(e){console.error(e);toast('Impossible de créer la sauvegarde')}}
-async function importData(input){let file=input?.files?.[0];if(!file)return;try{let text=await file.text(),raw=JSON.parse(text),incoming=raw?.state&&typeof raw.state==='object'?raw.state:raw;if(!incoming||!Array.isArray(incoming.recipes)||!Array.isArray(incoming.stock)||!Array.isArray(incoming.shopping))throw new Error('Format de sauvegarde invalide');if(!confirm('Importer cette sauvegarde ? Les données actuellement présentes sur cette tablette seront remplacées.')){input.value='';return}state=incoming;state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?[...new Set(state.shoppingCategories.filter(c=>String(c).trim()))]:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];for(const r of state.recipes){r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes';r.recipeEmoji=RECIPE_EMOJI_OPTIONS.some(x=>x.id===r.recipeEmoji)?r.recipeEmoji:'none'}for(const x of state.stock||[])x.photo=x.photo||'';for(const x of state.agenda||[]){x.advisedTime=x.advisedTime||x.notifyTime||startTime(x.time,x.duration||0);x.notifyTime=x.advisedTime}let photos=raw?.photos||{};for(const [ref,data] of Object.entries(photos)){if(String(ref).startsWith('idb:')&&typeof data==='string')await putPhoto(data,String(ref).slice(4))}photoCache={};save();for(const r of state.recipes)for(const ref of (r.photos||[]))if(String(ref).startsWith('idb:'))await getPhoto(ref);for(const x of state.stock||[])if(String(x.photo).startsWith('idb:'))await getPhoto(x.photo);for(const x of state.agenda||[])if(String(x.photo).startsWith('idb:'))await getPhoto(x.photo);closeModal();renderAll();toast('Données importées avec leurs photos ✅')}catch(e){console.error(e);toast('Import impossible : fichier invalide')}finally{if(input)input.value=''}}
+async function blobToDataUrl(blob){
+  if(!blob)return '';
+  if(typeof blob==='string'){
+    if(blob.startsWith('data:'))return blob;
+    if(blob.startsWith('blob:')){
+      try{const r=await fetch(blob);return await blobToDataUrl(await r.blob())}catch(e){return ''}
+    }
+    return '';
+  }
+  return await new Promise(resolve=>{const fr=new FileReader();fr.onload=()=>resolve(String(fr.result||''));fr.onerror=()=>resolve('');fr.readAsDataURL(blob)})
+}
+async function getAllPhotoRecords(){
+  const db=await photoDB();
+  const records=await new Promise((resolve,reject)=>{
+    const tx=db.transaction('photos','readonly'),store=tx.objectStore('photos'),out=[];
+    const q=store.openCursor();
+    q.onsuccess=()=>{const c=q.result;if(c){out.push({key:String(c.key),value:c.value});c.continue()}else resolve(out)};
+    q.onerror=()=>reject(q.error||new Error('Lecture photos impossible'));
+  });
+  db.close();
+  return records;
+}
+async function getAllTestImageRecords(){
+  const db=await photoDB();
+  if(!db.objectStoreNames.contains('testImages')){db.close();return []}
+  const records=await new Promise((resolve,reject)=>{
+    const tx=db.transaction('testImages','readonly'),store=tx.objectStore('testImages'),out=[];
+    const q=store.openCursor();
+    q.onsuccess=()=>{const c=q.result;if(c){out.push({key:String(c.key),value:c.value});c.continue()}else resolve(out)};
+    q.onerror=()=>reject(q.error||new Error('Lecture images test impossible'));
+  });
+  db.close();
+  return records;
+}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+async function buildFullBackup(){
+  await requestDurablePhotoStorage();
+  const photoRecords=await getAllPhotoRecords();
+  const testRecords=await getAllTestImageRecords();
+  const photos={};
+  for(const rec of photoRecords){const data=await blobToDataUrl(rec.value);if(data)photos['idb:'+rec.key]=data}
+  const testImages={};
+  for(const rec of testRecords){const data=await blobToDataUrl(rec.value);if(data)testImages[TEST_IMAGE_PREFIX+rec.key]=data}
+  return {version:4,format:'mikadodo-full-backup',exportedAt:new Date().toISOString(),state:JSON.parse(JSON.stringify(state)),photos,testImages}
+}
+async function exportData(){
+  try{
+    const backup=await buildFullBackup();
+    const blob=new Blob([JSON.stringify(backup)],{type:'application/json'});
+    downloadBlob(blob,'mikadodo-sauvegarde-complete.json');
+    toast(`Sauvegarde complète créée ✅ ${Object.keys(backup.photos).length} photos`)
+  }catch(e){console.error(e);toast('Impossible de créer la sauvegarde complète')}
+}
+async function exportPhotoBackupZip(){
+  try{
+    if(typeof JSZip==='undefined')throw new Error('JSZip absent');
+    const backup=await buildFullBackup();
+    const zip=new JSZip();
+    const manifest={version:4,format:'mikadodo-full-backup-zip',exportedAt:backup.exportedAt,photoCount:Object.keys(backup.photos).length,testImageCount:Object.keys(backup.testImages).length,photos:{},testImages:{}};
+    for(const [ref,dataUrl] of Object.entries(backup.photos)){
+      const m=dataUrl.match(/^data:([^;]+);base64,(.*)$/s);if(!m)continue;
+      const mime=m[1],base64=m[2], ext=(mime.split('/')[1]||'bin').replace('jpeg','jpg');
+      const safe=String(ref).slice(4).replace(/[^A-Za-z0-9._-]/g,'_');
+      const path=`photos/${safe}.${ext}`;
+      zip.file(path,base64,{base64:true});manifest.photos[ref]={path,mime}
+    }
+    for(const [ref,dataUrl] of Object.entries(backup.testImages)){
+      const m=dataUrl.match(/^data:([^;]+);base64,(.*)$/s);if(!m)continue;
+      const mime=m[1],base64=m[2], ext=(mime.split('/')[1]||'bin').replace('jpeg','jpg');
+      const safe=String(ref).slice(TEST_IMAGE_PREFIX.length).replace(/[^A-Za-z0-9._-]/g,'_');
+      const path=`testImages/${safe}.${ext}`;
+      zip.file(path,base64,{base64:true});manifest.testImages[ref]={path,mime}
+    }
+    zip.file('manifest.json',JSON.stringify(manifest,null,2));
+    zip.file('state.json',JSON.stringify(backup.state));
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    downloadBlob(blob,'mikadodo-sauvegarde-photos-complete.zip');
+    toast(`ZIP créé ✅ ${Object.keys(manifest.photos).length} photos`)
+  }catch(e){console.error(e);toast('Impossible de créer le ZIP')}
+}
+async function importZipBackup(file){
+  if(typeof JSZip==='undefined')throw new Error('JSZip absent');
+  const zip=await JSZip.loadAsync(file),manifest=JSON.parse(await zip.file('manifest.json').async('string')),stateText=await zip.file('state.json').async('string');
+  if(manifest?.format!=='mikadodo-full-backup-zip')throw new Error('ZIP Mikadodo invalide');
+  const incoming=JSON.parse(stateText);
+  if(!incoming||!Array.isArray(incoming.recipes)||!Array.isArray(incoming.stock)||!Array.isArray(incoming.shopping))throw new Error('État Mikadodo invalide');
+  if(!confirm('Restaurer cette sauvegarde ZIP ? Les données actuelles seront remplacées par celles de la sauvegarde.'))return;
+  state=incoming;
+  state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];
+  state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];
+  state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];
+  for(const r of state.recipes){r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes'}
+  const db=await photoDB();
+  await new Promise((resolve,reject)=>{
+    const tx=db.transaction(['photos','testImages'],'readwrite');tx.objectStore('photos').clear();tx.objectStore('testImages').clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)
+  });
+  for(const [ref,meta] of Object.entries(manifest.photos||{})){
+    const entry=zip.file(meta.path);if(!entry)continue;const blob=await entry.async('blob');
+    await new Promise((resolve,reject)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').put(blob,String(ref).slice(4));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})
+  }
+  for(const [ref,meta] of Object.entries(manifest.testImages||{})){
+    const entry=zip.file(meta.path);if(!entry)continue;const blob=await entry.async('blob');
+    await new Promise((resolve,reject)=>{const tx=db.transaction('testImages','readwrite');tx.objectStore('testImages').put(blob,String(ref).slice(TEST_IMAGE_PREFIX.length));tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})
+  }
+  db.close();photoCache={};testImageCache={};save();closeModal();renderAll();await warmPhotoCache();toast(`Restauration terminée ✅ ${manifest.photoCount||0} photos`)
+}
+async function importData(input){
+  const file=input?.files?.[0];if(!file)return;
+  try{
+    if(file.name.toLowerCase().endsWith('.zip')||file.type==='application/zip'){await importZipBackup(file);return}
+    const text=await file.text(),raw=JSON.parse(text),incoming=raw?.state&&typeof raw.state==='object'?raw.state:raw;
+    if(!incoming||!Array.isArray(incoming.recipes)||!Array.isArray(incoming.stock)||!Array.isArray(incoming.shopping))throw new Error('Format de sauvegarde invalide');
+    if(!confirm('Importer cette sauvegarde ? Les données actuellement présentes sur cette tablette seront remplacées.'))return;
+    state=incoming;state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];
+    for(const r of state.recipes){r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes'}
+    const photos=raw?.photos||{};for(const [ref,data] of Object.entries(photos)){if(String(ref).startsWith('idb:')&&typeof data==='string')await putPhoto(data,String(ref).slice(4))}
+    const testImages=raw?.testImages||{};for(const [ref,data] of Object.entries(testImages)){if(String(ref).startsWith(TEST_IMAGE_PREFIX)&&typeof data==='string'){const res=await fetch(data);await putTestRecipeImage(await res.blob(),String(ref).slice(TEST_IMAGE_PREFIX.length))}}
+    photoCache={};save();await warmPhotoCache();closeModal();renderAll();toast(`Données importées avec photos ✅ ${Object.keys(photos).length}`)
+  }catch(e){console.error(e);toast('Import impossible : fichier invalide')}
+  finally{if(input)input.value=''}
+}
 function removeMealHistory(id){state.mealHistory=state.mealHistory||[];state.mealHistory=state.mealHistory.filter(x=>x.id!==id);save();renderMealHistorySettings();toast('Repas supprimé de l’historique')}
 function renderMealHistorySettings(){let el=document.getElementById('mealHistorySettings');if(!el)return;let consumed=(state.mealHistory||[]).map(x=>({...x,consumed:true}));let history=[...consumed].sort((a,b)=>(b.date+' '+normalizeTime(b.time)).localeCompare(a.date+' '+normalizeTime(a.time)));el.innerHTML=history.length?history.map(x=>`<div class="shop-item" style="padding:8px 0;border-bottom:1px solid var(--line);gap:8px"><div class="shop-name"><span>${esc(x.name)}</span><div class="small">${esc(new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long'}))} · ${esc(normalizeTime(x.time).replace(':','h'))}${x.consumed?' · ✅ Consommé':''}</div></div>${x.consumed?`<button class="btn ghost mini" style="padding:4px 7px" onclick="removeMealHistory(${x.id})">🗑️</button>`:''}</div>`).join(''):'<div class="empty">Aucun repas dans l’historique pour le moment. 🍽️</div>'}
 function renderNotes(){let el=document.getElementById('notesList');if(!el)return;let total=state.notes.reduce((sum,n)=>sum+(Number(n.qty)||1)*(Number(n.price)||0),0);el.innerHTML=`<div class="shopping-summary"><div class="summary"><small>Total achats</small><strong>${shopMoney(total)}</strong></div></div>`+(state.notes.length?state.notes.map(n=>`<div class="note-item ${n.done?'done':''} clickable" onclick="openNoteEdit(${n.id})" title="Cliquer pour modifier"><input type="checkbox" ${n.done?'checked':''} onclick="event.stopPropagation()" onchange="toggleNote(${n.id})"><span>${n.emoji||productEmoji(n.text)} ${esc(n.text)}${Number(n.qty||1)>1?` × ${esc(String(n.qty))}`:''}</span><span class="shop-price">${shopMoney((Number(n.qty)||1)*(Number(n.price)||0))}</span><button class="btn ghost mini" onclick="event.stopPropagation();removeNote(${n.id})">×</button></div>`).join(''):'<div class="empty">Aucun achat pour le moment. 🌷</div>') }
