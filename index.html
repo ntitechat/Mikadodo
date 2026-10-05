@@ -584,7 +584,7 @@ state=state||{
  shopping:[{id:201,name:'Lait',qty:2,price:1.5,done:false,cat:'Produits laitiers'},{id:202,name:'Tomates',qty:1,price:1,done:false,cat:'Fruits et légumes'},{id:203,name:'Pain',qty:1,price:1,done:false,cat:'Épicerie'}],
  agenda:[],
  recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','Entrée','Boisson','Goûter','Apéritif','À congeler'],
- shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'],
+ shoppingCategories:['Ingrédients occasion'],
  shoppingStores:['Carrefour','Auchan','Grand Frais','KoRo','Asiatique'],
  notes:[],
  mealHistory:[]
@@ -640,11 +640,11 @@ let activeBreakfastCategory='Toutes';
 const preferredRecipeCategoryOrder=['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];
 state.recipeCategories=[...preferredRecipeCategoryOrder.filter(c=>state.recipeCategories.includes(c)),...state.recipeCategories.filter(c=>!preferredRecipeCategoryOrder.includes(c))];
 state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:[];
-state.shoppingCategories=[...new Set(state.shoppingCategories.filter(c=>String(c).trim()))];
-if(!state.shoppingCategories.length)state.shoppingCategories=['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];
+state.shoppingCategories=[...new Set(state.shoppingCategories.filter(c=>String(c).trim()&&c!=='Autre').map(c=>c==='Légumineuses'?'Légumineuse':c))];
+if(!state.shoppingCategories.length)state.shoppingCategories=['Ingrédients occasion'];
 state.notes=state.notes||[];
 state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];
-state.shopping.forEach(x=>{x.cat=x.cat||'Autre';x.place=x.place||'Placard';x.keep=Number(x.keep)||0;x.keepUnit=x.keepUnit||'jours';x.emoji=x.emoji||productEmoji(x.name)});
+state.shopping.forEach(x=>{x.cat=x.cat==='Légumineuses'?'Légumineuse':(x.cat==='Autre'||!x.cat?'Ingrédients occasion':x.cat);x.place=x.place||'Placard';x.keep=Number(x.keep)||0;x.keepUnit=x.keepUnit||'jours';x.emoji=x.emoji||productEmoji(x.name)});
 state.recipes.forEach(r=>{r.breakfastCategory=BREAKFAST_SUBCATEGORIES.includes(r.breakfastCategory)?r.breakfastCategory:'';r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes';r.videoLink=r.videoLink||'';r.videoLink2=r.videoLink2||'';r.recipeEmoji=RECIPE_EMOJI_OPTIONS.some(x=>x.id===r.recipeEmoji)?r.recipeEmoji:'none';if(r.keepUnit==='années')r.keepUnit='année'});state.stock.forEach(x=>x.photo=x.photo||'');
 state.agenda.forEach(x=>{x.advisedTime=x.advisedTime||x.notifyTime||startTime(x.time,x.duration||0);x.notifyTime=x.advisedTime});
 const PHOTO_DB='MikadodoPhotosV1';
@@ -2264,7 +2264,7 @@ function productEmoji(name){
   const found=rules.find(([re])=>re.test(s));
   return found?found[1]:'📦';
 }
-function shopMoney(n){let v=Number(n)||0;return Number.isInteger(v)?v+' €':v.toFixed(2).replace('.',',').replace(/,00$/,'')+' €'}function renderShopping(){let q=String(shoppingSearch||'').trim().toLocaleLowerCase('fr');let catsToShow=shoppingCatFilter==='all'?state.shoppingCategories:[shoppingCatFilter];let html=state.shopping.length?catsToShow.map(cat=>{let items=state.shopping.filter(x=>(((x.cat||'Autre')===cat)||(cat==='Légumineuses'&&(x.cat||'')==='Légumineuse'))&&(shoppingStoreFilter==='all'||String(x.store||'')===shoppingStoreFilter)&&(shoppingIngredientFilter==='toBuy'?!x.done:shoppingIngredientFilter==='bought'?x.done:true)&&(!shoppingRecipeFilterIds.length||shoppingRecipeFilterIds.includes(Number(x.id)))&&(!q||String(x.name||'').toLocaleLowerCase('fr').includes(q))).sort((a,b)=>(a.done-b.done)||String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));if(!items.length)return '';let notBought=items.filter(x=>!x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let bought=items.filter(x=>x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let catTotal=notBought+bought;return `<div class="stock-group"><div class="shopping-category-title"><span>🛒 ${esc(cat)}</span><span class="category-title-total">${shopMoney(catTotal)}</span></div><div class="category-stats"><span>Pas acheté <strong>${shopMoney(notBought)}</strong></span><span>Acheté <strong>${shopMoney(bought)}</strong></span><span>Total <strong>${shopMoney(catTotal)}</strong></span></div><div style="background:#fff;border-radius:0 0 15px 15px;box-shadow:var(--shadow);overflow:hidden">${items.map(x=>`<div class="shop-item shopping-item-compact clickable" data-shop-id="${x.id}" onclick="openShopEdit(${x.id})"><button class="check ${x.done?'on':''}" onclick="event.stopPropagation();toggleShop(${x.id})">${x.done?'✓':''}</button><div class="shop-name ${x.done?'done':''}"><b>${x.emoji||productEmoji(x.name)} ${esc(x.name)}</b></div><span class="shop-price">${shopMoney(x.price)}</span><button class="btn ghost" style="padding:7px 9px;margin-left:6px" title="Envoyer dans Achats" onclick="event.stopPropagation();addShoppingItemToNotes(${x.id})">Achat</button></div>`).join('')}</div></div>`}).join(''):(q?'<div class="empty">Aucun article ne correspond à ta recherche.</div>':'<div class="empty">Ta liste de courses est vide.</div>');document.getElementById('shopList').innerHTML=`<input id="shoppingSearch" class="search" type="search" value="${esc(shoppingSearch)}" placeholder="🔎 Rechercher un article..." oninput="setShoppingSearch(this.value)" style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button><div class="chips" style="margin-bottom:10px"><button class="chip ${shoppingCatFilter==='all'?'active':''}" onclick="shoppingCatFilter='all';renderShopping()">Toutes</button>${state.shoppingCategories.map(c=>`<button class="chip ${shoppingCatFilter===c?'active':''}" onclick="setShoppingCategory('${encodeURIComponent(c)}')">${esc(c)}</button>`).join('')}</div><div class="chips" style="margin-bottom:10px"><button class="chip ${shoppingStoreFilter==='all'?'active':''}" onclick="shoppingStoreFilter='all';renderShopping()">Tous</button>${state.shoppingStores.map(s=>`<button class="chip ${shoppingStoreFilter===s?'active':''}" onclick="setShoppingStore('${encodeURIComponent(s)}')">${esc(s)}</button>`).join('')}</div>${html}`;updateShoppingIngredientFilterButton();
+function shopMoney(n){let v=Number(n)||0;return Number.isInteger(v)?v+' €':v.toFixed(2).replace('.',',').replace(/,00$/,'')+' €'}function renderShopping(){let q=String(shoppingSearch||'').trim().toLocaleLowerCase('fr');let catsToShow=shoppingCatFilter==='all'?state.shoppingCategories:[shoppingCatFilter];let html=state.shopping.length?catsToShow.map(cat=>{let items=state.shopping.filter(x=>((x.cat||'Ingrédients occasion')===cat)&&(shoppingStoreFilter==='all'||String(x.store||'')===shoppingStoreFilter)&&(shoppingIngredientFilter==='toBuy'?!x.done:shoppingIngredientFilter==='bought'?x.done:true)&&(!shoppingRecipeFilterIds.length||shoppingRecipeFilterIds.includes(Number(x.id)))&&(!q||String(x.name||'').toLocaleLowerCase('fr').includes(q))).sort((a,b)=>(a.done-b.done)||String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));if(!items.length)return '';let notBought=items.filter(x=>!x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let bought=items.filter(x=>x.done).reduce((sum,x)=>sum+(Number(x.qty)||0)*(Number(x.price)||0),0);let catTotal=notBought+bought;return `<div class="stock-group"><div class="shopping-category-title"><span>🛒 ${esc(cat)}</span><span class="category-title-total">${shopMoney(catTotal)}</span></div><div class="category-stats"><span>Pas acheté <strong>${shopMoney(notBought)}</strong></span><span>Acheté <strong>${shopMoney(bought)}</strong></span><span>Total <strong>${shopMoney(catTotal)}</strong></span></div><div style="background:#fff;border-radius:0 0 15px 15px;box-shadow:var(--shadow);overflow:hidden">${items.map(x=>`<div class="shop-item shopping-item-compact clickable" data-shop-id="${x.id}" onclick="openShopEdit(${x.id})"><button class="check ${x.done?'on':''}" onclick="event.stopPropagation();toggleShop(${x.id})">${x.done?'✓':''}</button><div class="shop-name ${x.done?'done':''}"><b>${x.emoji||productEmoji(x.name)} ${esc(x.name)}</b></div><span class="shop-price">${shopMoney(x.price)}</span><button class="btn ghost" style="padding:7px 9px;margin-left:6px" title="Envoyer dans Achats" onclick="event.stopPropagation();addShoppingItemToNotes(${x.id})">Achat</button></div>`).join('')}</div></div>`}).join(''):(q?'<div class="empty">Aucun article ne correspond à ta recherche.</div>':'<div class="empty">Ta liste de courses est vide.</div>');document.getElementById('shopList').innerHTML=`<input id="shoppingSearch" class="search" type="search" value="${esc(shoppingSearch)}" placeholder="🔎 Rechercher un article..." oninput="setShoppingSearch(this.value)" style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button><div class="chips" style="margin-bottom:10px"><button class="chip ${shoppingCatFilter==='all'?'active':''}" onclick="shoppingCatFilter='all';renderShopping()">Toutes</button>${state.shoppingCategories.map(c=>`<button class="chip ${shoppingCatFilter===c?'active':''}" onclick="setShoppingCategory('${encodeURIComponent(c)}')">${esc(c)}</button>`).join('')}</div><div class="chips" style="margin-bottom:10px"><button class="chip ${shoppingStoreFilter==='all'?'active':''}" onclick="shoppingStoreFilter='all';renderShopping()">Tous</button>${state.shoppingStores.map(s=>`<button class="chip ${shoppingStoreFilter===s?'active':''}" onclick="setShoppingStore('${encodeURIComponent(s)}')">${esc(s)}</button>`).join('')}</div>${html}`;updateShoppingIngredientFilterButton();
 }
 
 
@@ -2310,7 +2310,7 @@ function renderRecipeIngredientPickerList(){
   const selected=window.recipePickerSelect?.value||'';
   // Les catégories du sélecteur d'ingrédients suivent exactement le même
   // ordre que celui configuré dans Paramètres > Catégories des courses.
-  const usedCategories=[...new Set(state.shopping.map(x=>x.cat||'Autre'))];
+  const usedCategories=[...new Set(state.shopping.map(x=>x.cat||'Ingrédients occasion'))];
   const configured=Array.isArray(state.shoppingCategories)?state.shoppingCategories:[];
   const categories=[
     ...configured.filter(cat=>usedCategories.some(u=>String(u).toLowerCase()===String(cat).toLowerCase())),
@@ -2323,7 +2323,7 @@ function renderRecipeIngredientPickerList(){
       categories.map(cat=>`<button type="button" class="recipe-picker-item recipe-picker-category" data-recipe-category="${esc(String(cat))}">📁 ${esc(cat)} <span>›</span></button>`).join('');
   }else{
     const cat=String(window.recipePickerCategory);
-    const items=state.shopping.filter(x=>String(x.cat||'Autre')===cat).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
+    const items=state.shopping.filter(x=>String(x.cat||'Ingrédients occasion')===cat).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
     list.innerHTML=`<button type="button" class="recipe-picker-back-btn" data-recipe-picker-back>‹ Retour aux catégories</button>`+
       items.map(x=>`<button type="button" class="recipe-picker-item" data-recipe-item="${esc(String(x.id))}">${esc(x.name)}${String(x.id)===String(selected)?' ✓':''}</button>`).join('')+
       (items.length?'':'<div class="recipe-picker-none">Aucun ingrédient dans cette catégorie.</div>');
@@ -2502,9 +2502,9 @@ function syncTestRecipeIngredientLinks(){
   }));
 }
 function testRecipeShoppingOptions(selected=''){
-  const cats=[...new Set((state.shoppingCategories||[]).concat((state.shopping||[]).map(x=>x.cat||'Autre')))];
+  const cats=[...new Set((state.shoppingCategories||[]).concat((state.shopping||[]).map(x=>x.cat||'Ingrédients occasion')))];
   return `<option value="">— Aucun lien —</option>`+cats.map(cat=>{
-    const items=(state.shopping||[]).filter(x=>String(x.cat||'Autre')===String(cat)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
+    const items=(state.shopping||[]).filter(x=>String(x.cat||'Ingrédients occasion')===String(cat)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
     return `<optgroup label="${esc(cat)}">${items.map(x=>`<option value="${esc(String(x.id))}" ${String(x.id)===String(selected)?'selected':''}>${esc(x.name)}</option>`).join('')}</optgroup>`;
   }).join('');
 }
@@ -2569,7 +2569,7 @@ function renderTestRecipeIngredientPickerList(){
   const list=document.getElementById('testRecipePickerList');
   if(!list)return;
   const selected=window.testRecipePickerSelect?.value||'';
-  const usedCategories=[...new Set(state.shopping.map(x=>x.cat||'Autre'))];
+  const usedCategories=[...new Set(state.shopping.map(x=>x.cat||'Ingrédients occasion'))];
   const configured=Array.isArray(state.shoppingCategories)?state.shoppingCategories:[];
   const categories=[
     ...configured.filter(cat=>usedCategories.some(u=>String(u).toLowerCase()===String(cat).toLowerCase())),
@@ -2580,7 +2580,7 @@ function renderTestRecipeIngredientPickerList(){
       categories.map(cat=>`<button type="button" class="recipe-picker-item recipe-picker-category" data-test-category="${esc(String(cat))}">📁 ${esc(cat)} <span>›</span></button>`).join('');
   }else{
     const cat=String(window.testRecipePickerCategory);
-    const items=state.shopping.filter(x=>String(x.cat||'Autre')===cat).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
+    const items=state.shopping.filter(x=>String(x.cat||'Ingrédients occasion')===cat).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'}));
     list.innerHTML=`<button type="button" class="recipe-picker-back-btn" data-test-picker-back>‹ Retour aux catégories</button>`+
       items.map(x=>`<button type="button" class="recipe-picker-item" data-test-item="${esc(String(x.id))}">${esc(x.name)}${String(x.id)===String(selected)?' ✓':''}</button>`).join('')+
       (items.length?'':'<div class="recipe-picker-none">Aucun ingrédient dans cette catégorie.</div>');
@@ -2613,7 +2613,7 @@ function addTestIngredientToShopping(index){
   const ingredients=String(document.getElementById('trIngredients')?.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
   const name=ingredients[index];if(!name)return;
   const existing=(state.shopping||[]).find(x=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());
-  const item=existing||{id:Date.now()+Math.floor(Math.random()*1000),name,cat:'Autre',qty:1,price:0,place:'Placard',keep:0,keepUnit:'jours',emoji:productEmoji(name),done:false};
+  const item=existing||{id:Date.now()+Math.floor(Math.random()*1000),name,cat:'Ingrédients occasion',qty:1,price:0,place:'Placard',keep:0,keepUnit:'jours',emoji:productEmoji(name),done:false};
   if(!existing)state.shopping.push(item);
   window.testRecipeIngredientDraft=window.testRecipeIngredientDraft||{raw:'',rows:[]};
   window.testRecipeIngredientDraft.rows[index]=window.testRecipeIngredientDraft.rows[index]||{text:name,link:{}};
@@ -2782,7 +2782,7 @@ function toggleTestIngredientUsed(id,index,checked){
 function addTestRecipeToShopping(id){
   const item=state.testRecipes.find(x=>Number(x.id)===Number(id));if(!item)return;
   const ingredients=getTestRecipeIngredients(item);let added=0;
-  ingredients.forEach(i=>{const name=String(i.text||'').trim();if(!name||name.startsWith('*'))return;const existing=(state.shopping||[]).find(x=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());if(!existing){state.shopping.push({id:Date.now()+Math.floor(Math.random()*100000),name,cat:'Autre',qty:1,price:0,place:'Placard',keep:0,keepUnit:'jours',emoji:productEmoji(name),done:false});added++;}});
+  ingredients.forEach(i=>{const name=String(i.text||'').trim();if(!name||name.startsWith('*'))return;const existing=(state.shopping||[]).find(x=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());if(!existing){state.shopping.push({id:Date.now()+Math.floor(Math.random()*100000),name,cat:'Ingrédients occasion',qty:1,price:0,place:'Placard',keep:0,keepUnit:'jours',emoji:productEmoji(name),done:false});added++;}});
   save();renderShopping();toast(added?`${added} ingrédient(s) ajouté(s) aux courses ✓`:'Les ingrédients sont déjà dans les courses ✓');
 }
 
@@ -2968,7 +2968,7 @@ function moveCategory(type,index,direction){
 }
 function addCategory(type){let name=prompt('Nom de la nouvelle catégorie :');if(!name)return;name=name.trim();if(!name)return;let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories;if(arr.some(x=>x.toLowerCase()===name.toLowerCase()))return toast('Cette catégorie existe déjà');arr.push(name);save();renderAll();openSettings();toast('Catégorie ajoutée')}
 function renameCategory(type,index){let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories,old=arr[index];let name=prompt('Nouveau nom de la catégorie :',old);if(!name)return;name=name.trim();if(!name||name===old)return;if(arr.some((x,i)=>i!==index&&x.toLowerCase()===name.toLowerCase()))return toast('Cette catégorie existe déjà');arr[index]=name;if(type==='recipe')state.recipes.forEach(r=>{if(r.cat===old)r.cat=name});else state.shopping.forEach(x=>{if(x.cat===old)x.cat=name});if(activeCat===old)activeCat=name;if(shoppingCatFilter===old)shoppingCatFilter=name;save();renderAll();openSettings();toast('Catégorie modifiée')}
-function deleteCategory(type,index){let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories;if(arr.length<=1)return toast('Garde au moins une catégorie');let old=arr[index];if(!confirm(`Supprimer « ${old} » ? Les éléments seront déplacés vers « Autre » si nécessaire.`))return;arr.splice(index,1);if(type==='recipe'){state.recipes.forEach(r=>{if(r.cat===old)r.cat=arr[0]||'Plat'});if(activeCat===old)activeCat='Toutes'}else{if(!state.shoppingCategories.includes('Autre'))state.shoppingCategories.push('Autre');state.shopping.forEach(x=>{if(x.cat===old)x.cat='Autre'});if(shoppingCatFilter===old)shoppingCatFilter='all'}save();renderAll();openSettings();toast('Catégorie supprimée')}
+function deleteCategory(type,index){let arr=type==='recipe'?state.recipeCategories:state.shoppingCategories;if(arr.length<=1)return toast('Garde au moins une catégorie');let old=arr[index];if(!confirm(`Supprimer « ${old} » ? Les éléments seront déplacés vers « Ingrédients occasion » si nécessaire.`))return;arr.splice(index,1);if(type==='recipe'){state.recipes.forEach(r=>{if(r.cat===old)r.cat=arr[0]||'Plat'});if(activeCat===old)activeCat='Toutes'}else{const fallback=arr.find(c=>c!==old)||'Ingrédients occasion';if(!arr.includes(fallback))arr.push(fallback);state.shopping.forEach(x=>{if(x.cat===old)x.cat=fallback});if(shoppingCatFilter===old)shoppingCatFilter='all'}save();renderAll();openSettings();toast('Catégorie supprimée')}
 async function requestNotifications(){
  if(!('Notification' in window)) return toast('Notifications non disponibles sur cet appareil');
  if(!window.isSecureContext && location.hostname!=='localhost' && location.hostname!=='127.0.0.1') return showNotificationHelp('Mikadodo doit être ouvert depuis une connexion sécurisée (HTTPS) ou installé comme application.');
@@ -3078,7 +3078,10 @@ async function importZipBackup(file){
   if(!confirm('Restaurer cette sauvegarde ZIP ? Les données actuelles seront remplacées par celles de la sauvegarde.'))return;
   state=incoming;
   state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];
-  state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];
+  state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Ingrédients occasion'];
+  state.shoppingCategories=[...new Set(state.shoppingCategories.filter(c=>String(c).trim()&&c!=='Autre').map(c=>c==='Légumineuses'?'Légumineuse':c))];
+  if(!state.shoppingCategories.length)state.shoppingCategories=['Ingrédients occasion'];
+  state.shopping.forEach(x=>{if(x.cat==='Légumineuses')x.cat='Légumineuse';if(x.cat==='Autre'||!x.cat)x.cat='Ingrédients occasion'});
   state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];
   for(const r of state.recipes){r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes'}
   const db=await photoDB();
@@ -3102,7 +3105,7 @@ async function importData(input){
     const text=await file.text(),raw=JSON.parse(text),incoming=raw?.state&&typeof raw.state==='object'?raw.state:raw;
     if(!incoming||!Array.isArray(incoming.recipes)||!Array.isArray(incoming.stock)||!Array.isArray(incoming.shopping))throw new Error('Format de sauvegarde invalide');
     if(!confirm('Importer cette sauvegarde ? Les données actuellement présentes sur cette tablette seront remplacées.'))return;
-    state=incoming;state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];
+    state=incoming;state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Ingrédients occasion'];state.shoppingCategories=[...new Set(state.shoppingCategories.filter(c=>String(c).trim()&&c!=='Autre').map(c=>c==='Légumineuses'?'Légumineuse':c))];if(!state.shoppingCategories.length)state.shoppingCategories=['Ingrédients occasion'];state.shopping.forEach(x=>{if(x.cat==='Légumineuses')x.cat='Légumineuse';if(x.cat==='Autre'||!x.cat)x.cat='Ingrédients occasion'});state.notes=Array.isArray(state.notes)?state.notes:[];state.mealHistory=Array.isArray(state.mealHistory)?state.mealHistory:[];
     for(const r of state.recipes){r.used=r.used||{};r.usedStock=r.usedStock||{};r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';r.servUnit=r.servUnit||'personnes'}
     const photos=raw?.photos||{};for(const [ref,data] of Object.entries(photos)){if(String(ref).startsWith('idb:')&&typeof data==='string')await putPhoto(data,String(ref).slice(4))}
     const testImages=raw?.testImages||{};for(const [ref,data] of Object.entries(testImages)){if(String(ref).startsWith(TEST_IMAGE_PREFIX)&&typeof data==='string'){const res=await fetch(data);await putTestRecipeImage(await res.blob(),String(ref).slice(TEST_IMAGE_PREFIX.length))}}
@@ -3215,7 +3218,8 @@ initPhotoStorage().then(async()=>{
   if(restored){
     // Normalise les références après restauration avant de refaire le rendu.
     state.recipeCategories=Array.isArray(state.recipeCategories)?state.recipeCategories:['Plat','Soupe','Salade','Accompagnement','Sandwich','Petit-déjeuner','Dessert','Jus','À congeler'];
-    state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories:['Fruits et légumes','Viandes','Poissons','Produits laitiers','Épicerie','Surgelés','Boissons','Hygiène','Maison','Autre'];
+    state.shoppingCategories=Array.isArray(state.shoppingCategories)?state.shoppingCategories.filter(c=>String(c).trim()&&c!=='Autre'):['Ingrédients occasion'];
+    state.shopping=(state.shopping||[]).map(x=>({...x,cat:(x.cat==='Légumineuses'?'Légumineuse':(x.cat==='Autre'||!x.cat?'Ingrédients occasion':x.cat))}));
     state.recipes=(state.recipes||[]).map(r=>{r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);r.photo=r.photos[0]||'';return r});
     renderAll();
   }
