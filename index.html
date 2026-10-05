@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <div class="app">
 <header class="top">
   <div class="hero"></div>
-  <nav class="top-nav" aria-label="Navigation principale"><button type="button" class="active" data-view="recipes">📖 Recettes</button><button type="button" data-view="breakfast">🥐 Petit déjeuner</button><button type="button" data-view="stock">🧊 Stock</button><button type="button" data-view="agenda">📅 Agenda</button><button type="button" data-view="shopping">🛒 Courses</button><button class="nav-btn" onclick="switchView('notes')">🛍️ Achats</button><button class="nav-btn" onclick="switchView('testRecipes')">🧪 Recettes à tester</button></nav>
+  <nav class="top-nav" aria-label="Navigation principale"><button type="button" class="active" data-view="recipes">📖 Recettes</button><button type="button" data-view="breakfast">🥐 Petit déjeuner</button><button type="button" data-view="stock">🧊 Stock</button><button type="button" data-view="agenda">📅 Agenda</button><button type="button" data-view="shopping">🛒 Courses</button><button class="nav-btn" onclick="switchView('notes')">🛍️ Achats</button><button class="nav-btn" onclick="switchView('testRecipes')">🧪 Recettes à tester</button><button class="nav-btn" onclick="switchView('mealHistory')">🍽️ Historique des repas</button></nav>
 </header>
 <main>
 <section id="recipes" class="view active">
@@ -554,6 +554,9 @@ document.addEventListener('DOMContentLoaded', function(){
  <div class="section-head"><div><h2>🧪 Recettes à tester</h2><div class="small">Garde tes idées de recettes YouTube ou Instagram au même endroit.</div></div><button class="btn purple" onclick="openTestRecipeModal()">＋ Ajouter</button></div>
  <input id="testRecipeSearch" class="search" placeholder="🔍 Rechercher une recette à tester…" oninput="renderTestRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div id="testRecipeGrid" class="grid"></div>
+</section><section id="mealHistory" class="view">
+ <div class="section-head"><div><h2>🍽️ Historique des repas</h2><div class="small">Retrouve les repas que tu as consommés.</div></div></div>
+ <div id="mealHistoryList"></div>
 </section><section id="notes" class="view"><div class="section-head"><div><h2>🛒 Achats</h2><div class="small">Tes listes, simplement.</div></div><button class="btn" onclick="syncAchatsWithShopping()" title="Synchroniser les achats cochés avec la liste de courses">🔄 Synchroniser avec la liste de courses</button></div><div class="note-add"><input id="noteInput" placeholder="Ajouter un élément… (ex. Lait 2,50 €)" aria-label="Nom et prix de l’achat" onkeydown="if(event.key==='Enter')addNote()"><button class="btn purple" onclick="addNote()">＋</button></div><div id="notesList" class="notes-list"></div></section>
 </main>
 <button class="fab" id="fab" onclick="quickAdd()">＋ Ajouter</button>
@@ -955,7 +958,7 @@ function renderCurrentView(){
   }catch(e){ console.error('Erreur d’affichage de la vue',currentView,e); }
 }
 function applyView(v){
-  const allowed=['recipes','breakfast','stock','agenda','shopping','testRecipes','notes'];
+  const allowed=['recipes','breakfast','stock','agenda','shopping','testRecipes','mealHistory','notes'];
   currentView=allowed.includes(v)?v:'recipes';
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===currentView));
   document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===currentView));
@@ -991,6 +994,7 @@ function renderAll(){linkExistingStockAndAgendaToRecipes();
   try{renderStock();}catch(e){console.warn('renderStock',e)}
   try{renderAgenda();}catch(e){console.warn('renderAgenda',e)}
   try{renderShopping();}catch(e){console.warn('renderShopping',e)}
+  try{renderMealHistoryPage();}catch(e){console.warn('renderMealHistoryPage',e)}
   try{renderNotes();}catch(e){console.warn('renderNotes',e)}
   try{updateReminder();}catch(e){console.warn('updateReminder',e)}
 }
@@ -3115,6 +3119,12 @@ async function importData(input){
 }
 function removeMealHistory(id){state.mealHistory=state.mealHistory||[];state.mealHistory=state.mealHistory.filter(x=>x.id!==id);save();renderMealHistorySettings();toast('Repas supprimé de l’historique')}
 function renderMealHistorySettings(){let el=document.getElementById('mealHistorySettings');if(!el)return;let consumed=(state.mealHistory||[]).map(x=>({...x,consumed:true}));let history=[...consumed].sort((a,b)=>(b.date+' '+normalizeTime(b.time)).localeCompare(a.date+' '+normalizeTime(a.time)));el.innerHTML=history.length?history.map(x=>`<div class="shop-item" style="padding:8px 0;border-bottom:1px solid var(--line);gap:8px"><div class="shop-name"><span>${esc(x.name)}</span><div class="small">${esc(new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long'}))} · ${esc(normalizeTime(x.time).replace(':','h'))}${x.consumed?' · ✅ Consommé':''}</div></div>${x.consumed?`<button class="btn ghost mini" style="padding:4px 7px" onclick="removeMealHistory(${x.id})">🗑️</button>`:''}</div>`).join(''):'<div class="empty">Aucun repas dans l’historique pour le moment. 🍽️</div>'}
+function renderMealHistoryPage(){
+  const el=document.getElementById('mealHistoryList');
+  if(!el)return;
+  const history=[...(state.mealHistory||[])].map(x=>({...x,consumed:true})).sort((a,b)=>(b.date+' '+normalizeTime(b.time)).localeCompare(a.date+' '+normalizeTime(a.time)));
+  el.innerHTML=history.length?history.map(x=>`<div class="shop-item" style="padding:10px 0;border-bottom:1px solid var(--line);gap:8px"><div class="shop-name"><span>🍽️ ${esc(x.name)}</span><div class="small">${esc(new Date(x.date+'T00:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}))} · ${esc(normalizeTime(x.time).replace(':','h'))} · ✅ Consommé</div></div><button class="btn ghost mini" style="padding:4px 7px" onclick="removeMealHistory(${x.id})" aria-label="Supprimer de l’historique" title="Supprimer">🗑️</button></div>`).join(''):'<div class="empty">Aucun repas dans l’historique pour le moment. 🍽️</div>';
+}
 function renderNotes(){let el=document.getElementById('notesList');if(!el)return;let total=state.notes.reduce((sum,n)=>sum+(Number(n.qty)||1)*(Number(n.price)||0),0);el.innerHTML=`<div class="shopping-summary"><div class="summary"><small>Total achats</small><strong>${shopMoney(total)}</strong></div></div>`+(state.notes.length?state.notes.map(n=>`<div class="note-item ${n.done?'done':''} clickable" onclick="openNoteEdit(${n.id})" title="Cliquer pour modifier"><input type="checkbox" ${n.done?'checked':''} onclick="event.stopPropagation()" onchange="toggleNote(${n.id})"><span>${n.emoji||productEmoji(n.text)} ${esc(n.text)}${Number(n.qty||1)>1?` × ${esc(String(n.qty))}`:''}</span><span class="shop-price">${shopMoney((Number(n.qty)||1)*(Number(n.price)||0))}</span><button class="btn ghost mini" onclick="event.stopPropagation();removeNote(${n.id})">×</button></div>`).join(''):'<div class="empty">Aucun achat pour le moment. 🌷</div>') }
 function addNote(){let el=document.getElementById('noteInput'),raw=el?.value.trim();if(!raw)return;let text=raw,price=0;let m=raw.match(/^(.*?)\s+(\d+(?:[.,]\d{1,2})?)\s*€\s*$/);if(m){text=m[1].trim();price=Number(m[2].replace(',','.'))}state.notes.push({id:Date.now(),text,emoji:productEmoji(text),price,qty:1,done:false});save();el.value='';renderNotes();toast('Achat ajouté ✨')}
 function toggleNote(id){let n=state.notes.find(x=>x.id===id);if(!n)return;n.done=!n.done;save();renderNotes()}
