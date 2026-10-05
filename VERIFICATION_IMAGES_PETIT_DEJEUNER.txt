@@ -7,5 +7,5 @@ Toutes les images présentes dans le projet sont lisibles.
 
 Correction appliquée :
 - Les références image_XXX.jpeg/png/etc. sont maintenant reconnues directement.
-- Le rendu Petit déjeuner ne dépend plus uniquement du cache IndexedDB pour ces images.
+- Le rendu Petit dej ne dépend plus uniquement du cache IndexedDB pour ces images.
 - Les photos des recettes sont préchargées avant le premier rendu pour accélérer leur affichage.
