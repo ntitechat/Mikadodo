@@ -211,7 +211,6 @@ document.addEventListener('DOMContentLoaded', function(){
  <input id="breakfastSearch" class="search" placeholder="🔍 Rechercher un petit déjeuner…" oninput="renderBreakfastRecipes()"/ style="padding-right:42px;" data-clear-search="true"><button type="button" class="clear-search-btn" aria-label="Effacer la recherche" title="Effacer">×</button>
  <div id="breakfastCategories" class="chips"></div>
  <div id="breakfastGrid" class="grid"></div>
-<div id="savedBreakfastImages" style="margin-top:18px"></div>
 </section>
 <section id="stock" class="view">
  <div class="section-head"><h2>Mon stock</h2><button class="btn" onclick="openStockModal()">＋ Ajouter</button></div>
@@ -1373,6 +1372,7 @@ initPhotoStorage().then(()=>{renderAll();restoreBackgroundTimer()});
 checkNotifications();
 scheduleNotificationCheck();
 </script>
-<script>
-window.addEventListener('DOMContentLoaded',()=>{renderSavedBreakfastImages();});
-</script><script>window.addEventListener('load',()=>hydrateRecipePhotos());</script></body></html>
+<script>window.addEventListener('load',()=>hydrateRecipePhotos());<script>
+/* Ancienne galerie interne Petit dej : aucune image n'est conservée dans l'application. */
+try{indexedDB.deleteDatabase('mikadodo-saved-breakfast-images');}catch(e){}
+</script></body></html>
