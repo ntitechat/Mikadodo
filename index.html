@@ -835,7 +835,18 @@ function preloadLocalPhotos(){
     const link=document.createElement('link'); link.rel='preload'; link.as='image'; link.href=src; document.head.appendChild(link);
   });
 }
-function photoSrc(ref){if(!ref)return '';if(photoCache[ref])return photoCache[ref];if(String(ref).startsWith('idb:'))return window.MIKADODO_RECOVERY_PHOTOS?.[String(ref)]||'';return String(ref)}
+function photoSrc(ref){
+  if(!ref)return '';
+  if(photoCache[ref])return photoCache[ref];
+  if(String(ref).startsWith('idb:')){
+    const recovered=window.MIKADODO_RECOVERY_PHOTOS?.[String(ref)];
+    // Les images de secours sont des fichiers livrés avec l'application.
+    // Le chemin relatif explicite fonctionne aussi lorsque l'application est
+    // installée sous un sous-chemin (PWA / hébergement statique).
+    return recovered ? './'+String(recovered).replace(/^\.\//,'') : '';
+  }
+  return String(ref);
+}
 async function migratePhotoField(obj,field){let v=obj?.[field];if(typeof v==='string'&&v.startsWith('data:image/')){obj[field]=await putPhoto(v)}else if(Array.isArray(v)){obj[field]=[];for(const item of v)obj[field].push(typeof item==='string'&&item.startsWith('data:image/')?await putPhoto(item):item)}}
 function prioritizeVisibleImages(){
   const imgs=[...document.querySelectorAll('.view.active img, .modal.show img, .modal-back.show img')];
@@ -3152,7 +3163,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
-<script>window.addEventListener('load',()=>hydrateRecipePhotos());<script>
+<script>window.addEventListener('load',()=>hydrateRecipePhotos());</script>
+<script>
 /* Ancienne galerie interne Petit dej : aucune image n'est conservée dans l'application. */
 try{indexedDB.deleteDatabase('mikadodo-saved-breakfast-images');}catch(e){}
 </script></body></html>
