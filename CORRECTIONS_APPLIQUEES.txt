@@ -1,0 +1,11 @@
+MIKADODO — CORRECTIONS APPLIQUÉES
+
+1. Paramètres > catégories de recettes
+La catégorie « À congeler » n’est plus ajoutée automatiquement au démarrage. La liste définie dans les paramètres peut donc rester supprimée après rechargement.
+
+2. Lien des ingrédients d’une recette
+Lorsqu’on modifie la liste des ingrédients, l’application cherche d’abord à rattacher chaque ligne à son ancien texte exact avant de recourir à la position de ligne. Si un ingrédient est supprimé ou déplacé, les liens des autres ingrédients distincts restent donc associés au bon ingrédient et ne glissent plus simplement vers la ligne voisine. Si le texte d’un ingrédient est modifié directement sur sa ligne, le lien de cette ligne est conservé en dernier recours.
+
+Fichier principal : index.html. Les autres fichiers HTML de l’archive contenant la même logique ont aussi été mis à jour. Les fichiers de sauvegarde et les photos n’ont pas été modifiés.
+
+À vérifier dans l’application après installation : supprimer « À congeler » dans Paramètres, recharger l’application, puis supprimer un ingrédient situé sous un ingrédient lié et vérifier que le lien reste sur le bon ingrédient.
