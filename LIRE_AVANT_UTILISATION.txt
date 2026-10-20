@@ -1,0 +1,31 @@
+MIKADODO — PAQUET POUR PRÉPARER LA CORRECTION
+
+Contenu
+-------
+- sauvegarde_mikadodo.zip : copie intacte de la sauvegarde fournie.
+
+Point important
+---------------
+Cette archive est une sauvegarde de données (manifest.json, state.json, photos et
+images de test). Elle ne contient pas le code source de l'application permettant
+de corriger le comportement de l'écran Paramètres et de la rubrique Recettes.
+
+Correction demandée
+-------------------
+Les catégories doivent être gérées depuis une source unique partagée par Paramètres
+et Recettes :
+- ajouter une catégorie dans Paramètres => elle apparaît dans Recettes ;
+- renommer une catégorie => le changement est répercuté partout ;
+- supprimer une catégorie => elle n'est plus proposée dans Recettes ;
+- les recettes existantes et leurs photos doivent être conservées ; si une recette
+  utilisait la catégorie supprimée, son classement doit être réinitialisé ou remplacé
+  sans supprimer la recette ;
+- enregistrer les changements de façon persistante.
+
+Pour créer un ZIP du projet réellement corrigé, il faut aussi fournir le dossier
+du projet/code source de Mikadodo (par exemple les fichiers JavaScript/TypeScript,
+HTML/CSS, configuration et dépendances, selon la technologie utilisée).
+
+Cette archive ne prétend donc pas être le projet corrigé : elle conserve la
+sauvegarde et documente ce qui manque pour effectuer la correction sans risque
+pour les données.
