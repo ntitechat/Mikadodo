@@ -1913,9 +1913,18 @@ function stockUnitLabel(qty,unit){let n=Number(qty)||0,u=String(unit||'x');if(u.
 function linkedRecipePhotoRef(item){
   if(!item)return '';
   const recipeId=Number(item.recipeId);
-  if(Number.isFinite(recipeId)&&recipeId>0){
-    const r=(state.recipes||[]).find(x=>Number(x.id)===recipeId);
-    if(r)return r.photos?.[0]||r.photo||'';
+  // Retrouver la recette par son identifiant, puis par son nom pour les
+  // anciens éléments du stock qui n'ont pas de recipeId.
+  const recipes=Array.isArray(state.recipes)?state.recipes:[];
+  const r=(Number.isFinite(recipeId)&&recipeId>0
+    ? recipes.find(x=>Number(x.id)===recipeId)
+    : null) || recipes.find(x=>sameFood(String(x.name||''),String(item.name||'')));
+  if(r){
+    const photos=Array.isArray(r.photos)?r.photos.filter(Boolean):[];
+    const first=photos[0]||r.photo||r.image||'';
+    const second=photos[1]||r.photo2||r.photo_2||'';
+    // Dans le stock, utiliser la 2e photo si elle existe ; sinon la 1re.
+    return second||first||item.photo||'';
   }
   return item.photo||'';
 }
