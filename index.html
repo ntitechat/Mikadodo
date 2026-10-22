@@ -1858,7 +1858,7 @@ function keyFromIngredient(s){return String(s||'').replace(/^\s*[\d.,]+\s*(kg|g|
 function sameFood(a,b){a=String(a).toLowerCase().trim();b=String(b).toLowerCase().trim();return a===b||a.includes(b)||b.includes(a)}
 function addRecipeToStock(id){let r=state.recipes.find(x=>x.id===id);if(!r)return;r.photos=Array.isArray(r.photos)?r.photos:(r.photo?[r.photo]:[]);let img=photoSrc(r.photos[1]||r.photos[0]||'');document.getElementById('modal').innerHTML=`<h2>🧊 Mettre ${esc(r.name)} dans le stock</h2>${img?`<img src="${img}" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;margin-bottom:12px">`:''}<div class="field"><label>Catégorie / emplacement</label><select id="sPlace"><option ${r.keepPlace==='Réfrigérateur'?'selected':''}>Réfrigérateur</option><option ${r.keepPlace==='Congélateur'?'selected':''}>Congélateur</option><option ${r.keepPlace==='Placard'?'selected':''}>Placard</option></select></div><div class="field" style="margin-top:10px"><label>Quantité / portions</label><input id="sQty" type="number" min="1" value="${Number(r.serv)||1}"></div><div class="notif" style="margin-top:12px">⏳ Conservation : <b>${r.keep} ${r.keepUnit}</b><br>📅 Date de fin calculée automatiquement à partir d'aujourd'hui : <b>${fmtDate(addKeepToDate(new Date(),r.keep,r.keepUnit).toISOString().slice(0,10))}</b></div><div class="actions"><button class="btn ghost" onclick="closeModal()">Annuler</button><button class="btn" onclick="saveRecipeStock(${r.id})">Ajouter au stock</button></div>`;showModal()}
 function addKeepToDate(d,value,unit){value=Number(value)||0;if(unit==='jours')d.setDate(d.getDate()+value);else if(unit==='semaines')d.setDate(d.getDate()+value*7);else if(unit==='mois')d.setMonth(d.getMonth()+value);else if(unit==='année'||unit==='années')d.setFullYear(d.getFullYear()+value);return d}
-function saveRecipeStock(id){let r=state.recipes.find(x=>x.id===id),qty=Number(document.getElementById('sQty').value)||1,place=document.getElementById('sPlace').value;let d=new Date();addKeepToDate(d,r.keep,r.keepUnit);state.stock.push({id:Date.now(),name:r.name,place,qty,unit:(r.servUnit==='sandwichs'?'sandwich(s)':r.servUnit==='pots'?'pot(s)':r.servUnit==='bouteilles'?'bouteille(s)':r.servUnit==='gateaux'?'gâteau(x)':r.servUnit==='glacons'?'glaçon(s)':'portion(s)'),date:d.toISOString().slice(0,10),days:r.keep,keep:r.keep,keepUnit:r.keepUnit,keepPlace:r.keepPlace,emoji:r.emoji||'🍽️',photo:(r.photos?.[1]||r.photos?.[0]||r.photo||''),recipeId:r.id});save();closeModal();toast('Recette ajoutée au stock');switchView('stock')}
+function saveRecipeStock(id){let r=state.recipes.find(x=>x.id===id),qty=Number(document.getElementById('sQty').value)||1,place=document.getElementById('sPlace').value;let d=new Date();addKeepToDate(d,r.keep,r.keepUnit);state.stock.push({id:Date.now(),name:r.name,place,qty,unit:(r.servUnit==='sandwichs'?'sandwich(s)':r.servUnit==='pots'?'pot(s)':r.servUnit==='bouteilles'?'bouteille(s)':r.servUnit==='gateaux'?'gâteau(x)':r.servUnit==='glacons'?'glaçon(s)':'portion(s)'),date:d.toISOString().slice(0,10),days:r.keep,keep:r.keep,keepUnit:r.keepUnit,keepPlace:r.keepPlace,emoji:r.emoji||'🍽️',photo:((Array.isArray(r.photos)&&r.photos.filter(Boolean)[1])||r.photo2||r.photo_2||r.secondPhoto||r.image2||r.image_2||(r.photos?.[0])||r.photo||r.image||''),recipeId:r.id});save();closeModal();toast('Recette ajoutée au stock');switchView('stock')}
 function shoppingIngredientName(line){let text=String(line||'').trim();if(!text||text.startsWith('*'))return '';text=text.replace(/\([^)]*\)/g,' ').replace(/\s{2,}/g,' ').trim();if(!text)return '';return text.replace(/^\d+[.,]?\d*\s*(g|kg|ml|cl|L|c\. à s\.)?\s*/i,'').trim()}
 function addRecipeToShopping(id){let r=state.recipes.find(x=>x.id===id);if(!r)return;r.ingredients.map(shoppingIngredientName).filter(Boolean).forEach(name=>state.shopping.push({id:Date.now()+Math.random(),name,qty:1,price:0,done:false}));save();closeModal();toast('Ingrédients ajoutés aux courses');switchView('shopping')}
 function prefillAgenda(id){let r=state.recipes.find(x=>x.id===id);closeModal();openAgendaModal(r)}
@@ -1913,17 +1913,15 @@ function stockUnitLabel(qty,unit){let n=Number(qty)||0,u=String(unit||'x');if(u.
 function linkedRecipePhotoRef(item){
   if(!item)return '';
   const recipeId=Number(item.recipeId);
-  // Retrouver la recette par son identifiant, puis par son nom pour les
-  // anciens éléments du stock qui n'ont pas de recipeId.
   const recipes=Array.isArray(state.recipes)?state.recipes:[];
   const r=(Number.isFinite(recipeId)&&recipeId>0
     ? recipes.find(x=>Number(x.id)===recipeId)
     : null) || recipes.find(x=>sameFood(String(x.name||''),String(item.name||'')));
   if(r){
+    // Certaines recettes utilisent photos[], d'autres un champ d'image secondaire.
     const photos=Array.isArray(r.photos)?r.photos.filter(Boolean):[];
+    const second=photos[1]||r.photo2||r.photo_2||r.secondPhoto||r.image2||r.image_2||'';
     const first=photos[0]||r.photo||r.image||'';
-    const second=photos[1]||r.photo2||r.photo_2||'';
-    // Dans le stock, utiliser la 2e photo si elle existe ; sinon la 1re.
     return second||first||item.photo||'';
   }
   return item.photo||'';

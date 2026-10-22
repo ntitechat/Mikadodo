@@ -1,0 +1,10 @@
+Correction Mikadodo — image du stock
+
+Pour appliquer la correction :
+1. Décompresse ce ZIP.
+2. Dans le dossier de ton application Mikadodo, repère le fichier index.html.
+3. Fais une copie de sauvegarde de ton index.html actuel.
+4. Remplace-le par le index.html fourni dans ce ZIP.
+
+Ce ZIP contient uniquement index.html corrigé, pas toute l'application.
+Garde les autres fichiers et images de ton application tels quels.
