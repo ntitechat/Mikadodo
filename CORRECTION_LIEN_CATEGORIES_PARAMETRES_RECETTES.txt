@@ -1,0 +1,9 @@
+CORRECTION — Catégories des recettes synchronisées avec les paramètres
+
+- Les catégories et leur ordre suivent désormais exactement la liste enregistrée dans Paramètres.
+- Le démarrage ne réimpose plus un ordre prédéfini qui annulait les changements effectués avec les flèches.
+- Quand une catégorie est renommée, les recettes qui l'utilisent suivent le nouveau nom.
+- Quand une catégorie est supprimée, les recettes concernées sont déplacées vers la première catégorie restante, et la catégorie supprimée ne réapparaît pas.
+- Les anciennes recettes qui référencent une catégorie absente sont réaffectées à une catégorie configurée.
+
+Fichier applicatif principal modifié : index.html
